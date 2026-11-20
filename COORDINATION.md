@@ -25,3 +25,5 @@
 
 - 52c09db3 completion: [PR #8](https://github.com/snapquast73-boop/LIVPBP1/pull/8) merged as `464e342e9d71bb319ec7f3f4322ce3ed12100f83`. [All DOM tests, official MLB rendering and real-Chrome row verification passed](https://github.com/snapquast73-boop/LIVPBP1/actions/runs/44828233389). [Pages deployment passed](https://github.com/snapquast73-boop/LIVPBP1/actions/runs/44828360397); [post-deployment HTTPS probes passed](https://github.com/snapquast73-boop/LIVPBP1/actions/runs/44828466316). [Live site](https://snapquast73-boop.github.io/LIVPBP1/). Remaining parity and public-data reuse questions are published on Flagged for Review, not marked verified.
 - Final board-only rebase conflict: retained both PR #9 evidence and this session completion entry.
+- In progress — f690183e: reconcile stale task statuses after merged integration and independently verify the published Pages state. Scope: `COORDINATION.md` only.
+- f690183e rebase conflict log: preserved the concurrent PR #10 completion record and this claim; no coordination entries were discarded.
