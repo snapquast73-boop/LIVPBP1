@@ -11,7 +11,9 @@ let date = localDate(new Date()),
   revision = 0,
   controller,
   pollTimer,
-  displayedDate;
+  displayedDate,
+  replayScan,
+  replayFilter = "all";
 const requested = new URLSearchParams(location.search).get("date");
 if (/^\d{4}-\d{2}-\d{2}$/.test(requested ?? "") &&
     localDate(new Date(requested + "T12:00:00")) === requested) date = requested;
@@ -57,10 +59,147 @@ async function get(url, signal) {
 }
 const feed = (id) => `${mlb}/api/v1.1/game/${id}/feed/live`;
 const plays = (data) => data.liveData?.plays?.allPlays ?? [];
-function reviews(p) {
-  return [p.result, ...(p.playEvents ?? []).map((e) => e.details)].filter(
-    (x) => x?.description && /challenge|review/i.test(x.description),
-  );
+const reportedNumber = (value) => Number.isSafeInteger(value) && value >= 0 ? value : "";
+const reportedText = (value) => typeof value === "string" ? value : "";
+const pendingCodes = new Set(["os_ruling_pending_primary", "os_ruling_pending_prior"]);
+const replayFilters = [
+  ["all", "All", () => true],
+  ["replay", "Reviews & Challenges", (r) => r.kind === "replay"],
+  ["abs", "ABS Challenges", (r) => r.kind === "abs"],
+  ["pending", "Scorer Pending", (r) => r.kind === "pending"],
+  ["active", "Under Review", (r) => r.active],
+];
+function reviewRows(data, game) {
+  const entries = [];
+  const url = feed(game);
+  const teams = data.gameData?.teams;
+  for (const p of plays(data).slice().reverse()) {
+    const seen = new Set();
+    const context = [teams?.away?.name, teams?.home?.name].filter(Boolean).join(" at ");
+    const inning = [p.about?.halfInning, p.about?.inning].filter(x => x != null).join(" ");
+    const atBat = reportedNumber(p.about?.atBatIndex);
+    const add = (details, info, event) => {
+      for (const d of Array.isArray(details) ? details : [details]) {
+        if (!d || typeof d !== "object" || !Object.keys(d).length) continue;
+        if (d.id != null) {
+          if (seen.has(d.id)) continue;
+          seen.add(d.id);
+        }
+        // MJ was cross-checked with MLB's own ABS clip for game 822974.
+        // Other codes stay opaque; don't reconstruct their labels from prefixes.
+        const code = reportedText(d.reviewType);
+        const kind = code === "MJ" ? "abs" : "replay";
+        const active = d.inProgress === true;
+        const outcome = active ? "Under review" : d.inProgress === false
+          ? d.isOverturned === true ? "Overturned" : d.isOverturned === false ? "Not overturned" : ""
+          : "";
+        const team = reportedNumber(d.challengeTeamId);
+        const index = reportedNumber(event?.index);
+        const description = reportedText(info?.description);
+        const location = `At-bat index: ${atBat}${event ? ` · Event index: ${index}` : ""} · Challenging team ID: ${team}`;
+        entries.push({ context, inning, kind, active, outcome, code, url, game, location, description,
+          missing: !outcome || !description || !code || atBat === "" || team === "" || (event && index === "") });
+      }
+      if (pendingCodes.has(info?.eventType)) {
+        entries.push({ context, inning, kind: "pending", code: info.eventType, url, game,
+          description: info.description, missing: !info.description });
+      }
+    };
+    add(p.reviewDetails, p.result);
+    for (const event of (p.playEvents ?? []).slice().reverse()) add(event.reviewDetails, event.details, event);
+  }
+  return entries;
+}
+function renderReviewRow(list, entry, detailsLink = false) {
+  const { context, inning, kind, code, outcome, description, missing, url, game, location } = entry;
+  const label = { replay: "Replay review", abs: "ABS challenge", pending: "Official Scorer Ruling Pending" }[kind];
+  const line = [context, inning, label, code, outcome, description, location,
+    missing ? "Some fields unverified or not reported" : ""].filter(Boolean).join(" · ");
+  row(list, line, url, detailsLink ? game : undefined);
+}
+function renderReplay() {
+  const list = el("feed-list"), stats = el("feed-stats");
+  if (!replayScan || replayScan.date !== date) return;
+  const { entries, balances, total, failed } = replayScan;
+  const [, , includes] = replayFilters.find(([key]) => key === replayFilter);
+  const visible = entries.filter(includes);
+  list.replaceChildren();
+  for (const entry of visible) renderReviewRow(list, entry, true);
+  if (!visible.length) list.textContent = failed
+    ? "No matching entries in the available feeds."
+    : total ? "No matching review events for this date/filter." : "No games scheduled.";
+  if (failed === total && failed) list.textContent = "No review entries loaded.";
+  const wasOpen = stats.querySelector("details")?.open;
+  stats.textContent = failed ? "Totals unverified: some game feeds are unavailable."
+    : replayFilters.slice(1).map(([, label, match]) => `${label}: ${entries.filter(match).length}`).join(" · ");
+  if (balances.length) {
+    const details = document.createElement("details");
+    details.open = Boolean(wasOpen);
+    const summary = document.createElement("summary");
+    summary.textContent = "MLB challenge counters (latest reported)";
+    details.append(summary);
+    for (const [label, source, game] of balances) row(details, label, source, game);
+    stats.append(details);
+  }
+  for (const b of el("feed-tabs").querySelectorAll("button")) {
+    b.setAttribute("aria-pressed", String(b.dataset.filter === replayFilter));
+    b.classList.toggle("tab-on", b.dataset.filter === replayFilter);
+  }
+}
+async function scanReplay(games, signal) {
+  let next = 0;
+  const results = [];
+  async function worker() {
+    while (!signal.aborted && next < games.length) {
+      const i = next++;
+      const id = games[i]?.gamePk;
+      if (!Number.isSafeInteger(id) || id <= 0) continue;
+      try {
+        const data = await get(feed(id), signal);
+        if (data.gamePk !== id || !Array.isArray(data.liveData?.plays?.allPlays)) continue;
+        results[i] = { entries: reviewRows(data, id), balances: challengeCounters(data, id) };
+      } catch { /* Report unavailable game feeds separately from an empty feed. */ }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(4, games.length) }, worker));
+  return {
+    entries: results.flatMap(r => r.entries),
+    balances: results.flatMap(r => r.balances),
+    total: games.length,
+    failed: games.length - results.filter(Boolean).length,
+  };
+}
+function challengeCounters(data, id) {
+  const lines = [];
+  for (const [key, label, fields] of [
+    ["review", "Replay challenge counters", [["used", "used"], ["remaining", "remaining"]]],
+    ["absChallenges", "ABS challenge counters", [["usedSuccessful", "successful"], ["usedFailed", "unsuccessful"], ["remaining", "remaining"]]],
+  ]) {
+    for (const side of ["away", "home"]) {
+      const values = data.gameData?.[key]?.[side];
+      const present = ([field]) => Number.isSafeInteger(values?.[field]) && values[field] >= 0;
+      if (!fields.some(present)) continue;
+      const counters = fields.map(([field, caption]) => `${caption}: ${present([field]) ? values[field] : ""}`).join(" · ");
+      const name = reportedText(data.gameData?.teams?.[side]?.name);
+      lines.push([`${label} (${side})${name ? ` · ${name}` : ""} · ${counters}${fields.every(present) ? "" : " · Missing values unverified"}`, feed(id), id]);
+    }
+  }
+  return lines;
+}
+function renderGameReviews(data, id) {
+  const list = el("reviews-wrap"), badge = el("reviews-tab-count");
+  list.replaceChildren();
+  badge.style.display = "none";
+  if (!Array.isArray(data.liveData?.plays?.allPlays)) {
+    list.textContent = "Review entries unverified: play feed unavailable.";
+    return;
+  }
+  const entries = reviewRows(data, id);
+  badge.textContent = entries.length;
+  if (entries.length) badge.style.display = "";
+  for (const entry of entries) renderReviewRow(list, entry);
+  for (const [label, source] of challengeCounters(data, id)) row(list, label, source);
+  if (!list.children.length) list.textContent = "No review entries or challenge counters reported.";
 }
 function lines(id, rows, url) {
   const p = el(id);
@@ -81,6 +220,8 @@ async function refresh() {
       if (displayedDate !== date) {
         (el("game-list") || el("feed-list")).replaceChildren();
         text("status-line", "");
+        text("feed-stats", "");
+        replayScan = undefined;
         displayedDate = date;
       }
       el("date-picker").value = date;
@@ -92,52 +233,26 @@ async function refresh() {
         throw Error("Schedule date or game list unverified.");
       const games = data.dates.flatMap(d => d.games);
       const list = el("game-list") || el("feed-list");
-      list.replaceChildren();
-      let failed = 0;
-      for (const g of games) {
-        const names = ["away", "home"]
-          .map((k) =>
-            [g.teams?.[k]?.team?.name, g.teams?.[k]?.score]
-              .filter((x) => x != null)
-              .join(" "),
-          )
-          .join(" at ");
-        if (el("game-list"))
-          row(
-            list,
-            `${names} · ${g.status?.detailedState ?? ""}`,
-            url,
-            g.gamePk,
-          );
-        else if (g.gamePk) {
-          try {
-            const d = await get(feed(g.gamePk), signal);
-            if (v !== revision) return;
-            if (!Array.isArray(d.liveData?.plays?.allPlays)) { failed++; continue; }
-            for (const p of plays(d).slice().reverse())
-              for (const x of reviews(p))
-                row(
-                  list,
-                  [d.gameData?.teams?.away?.name, d.gameData?.teams?.home?.name].join(" at ") + " · " + x.description,
-                  feed(g.gamePk),
-                  g.gamePk,
-                );
-          } catch {
-            if (v !== revision) return;
-            failed++;
-          }
+      if (el("game-list")) {
+        list.replaceChildren();
+        for (const g of games) {
+          const names = ["away", "home"]
+            .map((k) => [g.teams?.[k]?.team?.name, g.teams?.[k]?.score]
+              .filter((x) => x != null).join(" "))
+            .join(" at ");
+          row(list, `${names} · ${g.status?.detailedState ?? ""}`, url, g.gamePk);
         }
+        if (!list.children.length) text(list.id, "No games scheduled.");
+        text("banner", "");
+      } else {
+        const scan = await scanReplay(games, signal);
+        if (v !== revision) return;
+        replayScan = { ...scan, date };
+        renderReplay();
+        text("banner", scan.failed ? `${scan.failed} game feed${scan.failed === 1 ? "" : "s"} unavailable.` : "");
+        text("status-line", `Last updated ${new Date().toLocaleTimeString()} · Scanned ${scan.total - scan.failed}/${scan.total} games`);
+        return;
       }
-      if (!list.children.length)
-        text(
-          list.id,
-          failed
-            ? "No review entries loaded."
-            : games.length
-              ? "No review descriptions reported."
-              : "No games scheduled.",
-        );
-      text("banner", failed ? `${failed} game feeds unavailable.` : "");
     } else {
       const q = new URLSearchParams(location.search),
         id = q.get("gamePk") || q.get("game");
@@ -169,11 +284,7 @@ async function refresh() {
           .filter(Boolean),
         url,
       );
-      lines(
-        "reviews-wrap",
-        ps.flatMap(reviews).map((x) => x.description),
-        url,
-      );
+      renderGameReviews(d, id);
       lines(
         "linescore-wrap",
         (live.linescore?.innings ?? []).map(
@@ -238,6 +349,18 @@ for (const b of document.querySelectorAll("[data-tab]"))
       t.classList.toggle("tab-on", t === b);
     }
   };
+if (el("feed-tabs")) {
+  for (const [key, label] of replayFilters) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.filter = key;
+    button.textContent = label;
+    button.setAttribute("aria-pressed", String(key === replayFilter));
+    button.classList.toggle("tab-on", key === replayFilter);
+    button.onclick = () => { replayFilter = key; renderReplay(); };
+    el("feed-tabs").append(button);
+  }
+}
 if (el("refresh-btn")) el("refresh-btn").onclick = refresh;
 for (const id of ["notify-toggle-btn", "sound-toggle-btn"])
   if (el(id)) {

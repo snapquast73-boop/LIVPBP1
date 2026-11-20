@@ -21,10 +21,12 @@
     </p>
     <h2>Replay feed and projections</h2>
     <p>
-      The feed lists official descriptions containing “review” or “challenge”;
-      it is not a classification of rulings. Historical score changes, alerts,
-      synchronized logs, challenge counters, forecasts, advanced filters and
-      original refresh timing are not reproduced. Consult
+      Replay entries use MLB’s structured review fields. Other than the ABS code
+      checked below, review codes are shown as reported rather than assigned a
+      more specific label. Missing outcomes, descriptions or counter values
+      stay blank and are flagged. Runs at risk, historical scoring changes,
+      browser and synchronized logs, alerts, and forecasts are not reproduced.
+      Consult
       <a href="https://www.mlb.com/scores">MLB scores and Gameday</a> for
       official results.
     </p>
@@ -68,8 +70,8 @@
         the unused replay-review parser reads play- and event-level
         <code>reviewDetails</code> objects whose field names
         (<code>reviewType</code>, <code>isOverturned</code>, <code>inProgress</code>)
-        have not been confirmed against the official feed, and the unused
-        team-logo CDN pattern
+        are now confirmed in an official sample for the active client; that
+        does not verify the alternate parser. The unused team-logo CDN pattern
         (<code>https://www.mlbstatic.com/team-logos/&lt;id&gt;.svg</code>) could not
         be retrieved when probed through the audit pipeline (HTTP 500), so it is
         unverified, not broken. They remain in the repository (not discarded);
@@ -129,7 +131,8 @@
         <code>os_ruling_pending_primary</code> and
         <code>os_ruling_pending_prior</code> (“Official Scorer Ruling Pending”)
         are present, confirming the registry-level claim in the original
-        documentation; the reconstruction does not track pending rulings.
+        documentation. The active client now includes events with these codes
+        when they are present in a play result or event.
         These pin the archived Final game only; they do not certify future
         live responses.
       </li>
@@ -141,12 +144,17 @@
         original site therefore remains unverified and unverifiable.
       </li>
       <li>
-        <strong>Replay-feed classification.</strong> The feed lists official
-        descriptions containing “review” or “challenge” and links each row to its
-        MLB response; it is not a classification of rulings and does not predict
-        outcomes (already stated above; retained for completeness). Sound and
-        desktop-notification buttons remain disabled by design pending a verified
-        notification model; no notification or audio is delivered today.
+        <strong>Replay-feed verification.</strong>
+        The <a href="https://statsapi.mlb.com/api/v1.1/game/822974/feed/live?fields=gamePk,gameData,review,absChallenges,away,home,used,usedSuccessful,usedFailed,remaining,liveData,plays,allPlays,reviewDetails,reviewType,isOverturned,inProgress,playEvents">official Tigers–Rays feed</a>
+        exposes review results at both play and event level, and the reported
+        replay and ABS counters used in the game view. MLB’s
+        <a href="https://www.mlb.com/rays/video/garrett-cleavinger-ball-to-jahmai-jones-capture-review">ABS highlight from the same game</a>
+        identifies the overturned pitch challenge. The
+        <a href="https://statsapi.mlb.com/api/v1.1/game/775296/feed/live?fields=gameData,review,away,home,used,remaining,liveData,plays,allPlays,reviewDetails,reviewType,isOverturned,inProgress,challengeTeamId">official World Series feed sample</a>
+        includes a non-ABS review stored at play level. Snapshots do not validate
+        how future live polls behave or reconstruct earlier calls. Partial scans
+        show only available rows and flag aggregate counts as unverified. Sound
+        and desktop notifications remain disabled.
       </li>
       <li>
         <strong>Permanent CI assertions.</strong>
