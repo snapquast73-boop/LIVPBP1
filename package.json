@@ -1,0 +1,6 @@
+{
+  "name": "mlb-live-pbp",
+  "private": true,
+  "scripts": { "test": "node --test tests/app.test.cjs && python3 tests/check.py" },
+  "devDependencies": { "jsdom": "26.1.0" }
+}
