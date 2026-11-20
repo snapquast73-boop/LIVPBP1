@@ -13,3 +13,8 @@ jobs:
           curl -fsS --retry 3 'https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=linescore' > /tmp/schedule
           game=$(jq -er '.dates[0].games[0].gamePk' /tmp/schedule)
           curl -fsS --retry 3 "https://statsapi.mlb.com/api/v1.1/game/$game/feed/live" | jq -e '.gameData.teams.home.name and .liveData.boxscore.teams.home.players and (.liveData.plays.allPlays|length>0)'
+      - name: Exercise published-client rendering against MLB
+        run: |
+          python3 -m http.server 8000 >/tmp/site.log 2>&1 &
+          google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=8000 --dump-dom 'http://localhost:8000/index.html?date=2024-10-30' >/tmp/rendered
+          python3 tests/verify_schedule.py /tmp/schedule /tmp/rendered
