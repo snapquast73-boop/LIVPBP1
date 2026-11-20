@@ -1,0 +1,37 @@
+name: Verify game page against MLB
+on:
+  pull_request:
+  deployment_status:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  game:
+    if: github.event_name != 'deployment_status' || (github.event.deployment.environment == 'github-pages' && github.event.deployment_status.state == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Verify game headers, innings, batting rows, and play descriptions
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          schedule='https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30'
+          pk=$(curl -fsS --retry 3 "$schedule" | jq -er '.dates[0].games[0].gamePk | numbers')
+          source="https://statsapi.mlb.com/api/v1.1/game/$pk/feed/live"
+          curl -fsS --retry 3 "$source" -o "$RUNNER_TEMP/feed.json"
+          base=https://snapquast73-boop.github.io/LIVPBP1/
+          if [[ "$EVENT" == pull_request ]]; then
+            base=http://127.0.0.1:8000/
+            python3 -m http.server 8000 --bind 127.0.0.1 > "$RUNNER_TEMP/server.log" 2>&1 &
+            curl -fsS --retry 5 --retry-connrefused "${base}game.html" >/dev/null
+          fi
+          page="${base}game.html?gamePk=$pk&date=2024-10-30"
+          google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=8000 --dump-dom "$page" > "$RUNNER_TEMP/game.html"
+          node tests/verify-game.mjs "$RUNNER_TEMP/feed.json" "$RUNNER_TEMP/game.html" "$pk"
+          echo "Verified game $pk against [MLB schedule]($schedule) and [MLB game feed]($source)." >> "$GITHUB_STEP_SUMMARY"
