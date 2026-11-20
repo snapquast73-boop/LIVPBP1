@@ -7,6 +7,8 @@
 - Handoff note: rebasing against the older session tip attempted to replay already merged parallel commits and conflicted on the board. Aborted that rebase to preserve the combined main tree, then synchronized against main.
 - In progress — 5d2beaa9, final integration: audit active client, improve verified functionality and checks; scope assets/app.js, tests/, .github/workflows/check.yml, flagged.html and coordination log.
 
-- In progress — 26f4cc3c: independent post-deployment HTTP smoke test; owns only `.github/workflows/live-check.yml` and this task entry. Existing integration owner retains site scope.
+- Done — 26f4cc3c: independent post-deployment HTTP smoke test; owns only `.github/workflows/live-check.yml` and this task entry. Existing integration owner retains site scope.
 - Board conflict with PR #4: retained both the integration handoff and the independent smoke-check claim.
 - Board conflict during integration: preserved both session logs and merged the updated main history without rewriting the published claim.
+- [PR #5](https://github.com/snapquast73-boop/LIVPBP1/pull/5) merged as `343a130`. [Public HTTPS probes](https://github.com/snapquast73-boop/LIVPBP1/actions/runs/44827880026), [local references, JS syntax and official MLB response check](https://github.com/snapquast73-boop/LIVPBP1/actions/runs/44827879817), and [merged Pages deployment](https://github.com/snapquast73-boop/LIVPBP1/actions/runs/44827936195) passed. These checks do not establish feature parity or independently verify every live statistic.
+- PR #6 board conflict: retained its completed smoke-check record alongside our integration log. [PR #7](https://github.com/snapquast73-boop/LIVPBP1/pull/7): [Chrome row-by-row schedule comparison, official game-feed and static link checks passed](https://github.com/snapquast73-boop/LIVPBP1/actions/runs/44828090653).
