@@ -166,5 +166,25 @@
         future MLB data.
       </li>
     </ul>
+    <h2>Replay Feed browser acceptance &amp; final integration — 2026-11-20 (session a8ae1984)</h2>
+    <p>
+      Added real-Chrome row-by-row acceptance verification for
+      <code>reviews.html</code>
+      (<a href="https://github.com/snapquast73-boop/LIVPBP1/blob/main/tests/verify-reviews.mjs">tests/verify-reviews.mjs</a>
+      and
+      <a href="https://github.com/snapquast73-boop/LIVPBP1/blob/main/.github/workflows/reviews-acceptance.yml">.github/workflows/reviews-acceptance.yml</a>)
+      complementing the existing browser checks for <code>index.html</code> and
+      <code>game.html</code>. On pull requests and after each GitHub Pages
+      deployment, headless Chrome loads
+      <code>reviews.html?date=2024-10-30</code> and verifies that every rendered
+      Replay Feed row, filter button, and expandable challenge-counter row
+      matches the independently downloaded
+      <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2024-10-30&amp;hydrate=linescore">official MLB schedule</a>
+      and
+      <a href="https://statsapi.mlb.com/api/v1.1/game/775296/feed/live">official live game feed</a>
+      with exact source links and without substituting values for missing fields.
+      As with all historical checks, this verifies the archived sample response
+      only, not future live games or original upstream feature parity.
+    </p>
   </main>
 </html>
