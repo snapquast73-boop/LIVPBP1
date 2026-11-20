@@ -10,7 +10,19 @@ const localDate = (d) =>
 let date = localDate(new Date()),
   revision = 0,
   controller,
-  pollTimer;
+  pollTimer,
+  displayedDate;
+const requested = new URLSearchParams(location.search).get("date");
+if (/^\d{4}-\d{2}-\d{2}$/.test(requested ?? "") &&
+    localDate(new Date(requested + "T12:00:00")) === requested) date = requested;
+function syncNavigation() {
+  for (const a of document.querySelectorAll('a[href^="index.html"], a[href^="reviews.html"]')) {
+    const url = new URL(a.href);
+    url.searchParams.set("date", date);
+    a.href = url.href;
+  }
+}
+syncNavigation();
 const text = (id, s) => {
   if (el(id)) el(id).textContent = s ?? "";
 };
@@ -24,7 +36,7 @@ function row(parent, label, url, game) {
   const card = document.createElement("article");
   card.append(document.createTextNode(label + " "));
   if (game)
-    link(card, "Game details", "game.html?gamePk=" + encodeURIComponent(game));
+    link(card, "Game details", "game.html?gamePk=" + encodeURIComponent(game) + "&date=" + date);
   link(card, "MLB source", url);
   parent.append(card);
 }
@@ -65,16 +77,20 @@ async function refresh() {
   text("banner", "Loading MLB data…");
   try {
     if (el("date-picker")) {
-      el("date-picker").value = date;
-      if (el("date-label").textContent !== date) {
+      syncNavigation();
+      if (displayedDate !== date) {
         (el("game-list") || el("feed-list")).replaceChildren();
         text("status-line", "");
+        displayedDate = date;
       }
+      el("date-picker").value = date;
       text("date-label", date);
       const url = `${mlb}/api/v1/schedule?sportId=1&date=${date}&hydrate=linescore`;
       const data = await get(url, signal);
       if (v !== revision) return;
-      const games = (data.dates ?? []).flatMap((d) => d.games ?? []);
+      if (!Array.isArray(data.dates) || data.dates.some(d => d.date !== date || !Array.isArray(d.games)))
+        throw Error("Schedule date or game list unverified.");
+      const games = data.dates.flatMap(d => d.games);
       const list = el("game-list") || el("feed-list");
       list.replaceChildren();
       let failed = 0;
@@ -97,11 +113,12 @@ async function refresh() {
           try {
             const d = await get(feed(g.gamePk), signal);
             if (v !== revision) return;
+            if (!Array.isArray(d.liveData?.plays?.allPlays)) { failed++; continue; }
             for (const p of plays(d).slice().reverse())
               for (const x of reviews(p))
                 row(
                   list,
-                  names + " · " + x.description,
+                  [d.gameData?.teams?.away?.name, d.gameData?.teams?.home?.name].join(" at ") + " · " + x.description,
                   feed(g.gamePk),
                   g.gamePk,
                 );

@@ -7,7 +7,7 @@ const app = fs.readFileSync('assets/app.js', 'utf8');
 const settle = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
 function setup(page, fetch, query = '') {
   const dom = new JSDOM(fs.readFileSync(page, 'utf8'), {
-    url: 'https://example.test/LIVPBP1/' + page + query, runScripts: 'outside-only'
+    url: 'https://example.test/LIVPBP1/' + page + (query || '?date=2024-10-30'), runScripts: 'outside-only'
   });
   const timers = new Map();
   let seq = 0;
@@ -18,7 +18,7 @@ function setup(page, fetch, query = '') {
   return { window: dom.window, doc: dom.window.document, timers };
 }
 const ok = data => Promise.resolve({ ok: true, json: async () => data });
-const schedule = { dates: [{ games: [{ gamePk: 123, teams: { away: { team: { name: '<script>test</script>' }, score: 0 }, home: { team: { name: 'Home' } } }, status: { detailedState: 'Final' } }] }] };
+const schedule = { dates: [{ date: '2024-10-30', games: [{ gamePk: 123, teams: { away: { team: { name: '<script>test</script>' }, score: 0 }, home: { team: { name: 'Home' } } }, status: { detailedState: 'Final' } }] }] };
 
 test('scoreboard preserves reported zero, leaves absent score blank, escapes text and links each row', async () => {
   const { doc, timers } = setup('index.html', () => ok(schedule));
@@ -26,7 +26,7 @@ test('scoreboard preserves reported zero, leaves absent score blank, escapes tex
   const row = doc.querySelector('#game-list article');
   assert.match(row.textContent, /<script>test<\/script> 0 at Home · Final/);
   assert.equal(row.querySelector('script'), null);
-  assert.equal(row.querySelector('a').getAttribute('href'), 'game.html?gamePk=123');
+  assert.equal(row.querySelector('a').getAttribute('href'), 'game.html?gamePk=123&date=2024-10-30');
   assert.match(row.lastChild.href, /^https:\/\/statsapi.mlb.com\/api\/v1\/schedule/);
   assert.deepEqual([...timers.values()].map(t => t.delay), [30000]);
 });
