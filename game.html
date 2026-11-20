@@ -18,7 +18,7 @@
   <link rel="dns-prefetch" href="https://statsapi.mlb.com">
   <link rel="dns-prefetch" href="https://www.mlbstatic.com">
   <link rel="dns-prefetch" href="https://img.mlbstatic.com">
-  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/style.css">
 </head>
 <body class="page-game">
   <header class="topbar topbar-game">
@@ -33,6 +33,7 @@
   <div id="loading" class="loading-overlay"><div class="spinner"></div></div>
 
   <main id="main" class="game-main">
+    <div id="banner" role="status"></div>
 
     <!-- game header: teams / score / status -->
     <section class="game-header">
@@ -78,7 +79,7 @@
     <div id="status-line" class="status-line"></div>
   </main>
 
-  <footer class="site-footer">
+  <footer class="site-footer"><a href="flagged.html">Flagged for Review</a>
     <p>
       Unofficial fan project. Live data via the public MLB StatsAPI
       (<a href="https://statsapi.mlb.com" target="_blank" rel="noopener">statsapi.mlb.com</a>).
@@ -86,11 +87,6 @@
     </p>
   </footer>
 
-  <script src="assets/js/api.js"></script>
-  <script src="assets/js/ui.js"></script>
-  <script src="assets/js/reviews.js"></script>
-  <script src="assets/js/feed-log.js"></script>
-  <script src="assets/js/props.js"></script>
-  <script src="assets/js/game.js"></script>
+  <script src="assets/app.js"></script>
 </body>
 </html>
