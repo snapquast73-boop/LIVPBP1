@@ -40,3 +40,5 @@
 - 1d1e0d9e board conflict on integration with PR #12: retained both task entries; no site changes discarded.
 - The first pull --rebase onto the older published claim tried to replay already-integrated history. Aborted the rebase without changing README or losing work; synchronized against main instead.
 - 2d7bbb4d integration with PR #13: resolved overlapping coordination log appends by preserving all distinct entries; retained its game-page acceptance check unchanged.
+- In progress — a8ae1984 (final integration & replay-feed browser acceptance): integrate remaining board records (`4a224804` PR #14 and `c45fb005` PR #15), add real-Chrome Replay Feed (`reviews.html`) row-by-row acceptance verification against official MLB schedule/feed responses (`tests/verify-reviews.mjs`, `.github/workflows/reviews-acceptance.yml`), publish additive audit notes on `flagged.html`, and verify combined build and GitHub Pages deployment. Scope: `tests/verify-reviews.mjs`, `.github/workflows/reviews-acceptance.yml`, additive section in `flagged.html`, and `COORDINATION.md`.
+
