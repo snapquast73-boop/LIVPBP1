@@ -57,10 +57,50 @@ async function get(url, signal) {
 }
 const feed = (id) => `${mlb}/api/v1.1/game/${id}/feed/live`;
 const plays = (data) => data.liveData?.plays?.allPlays ?? [];
-function reviews(p) {
-  return [p.result, ...(p.playEvents ?? []).map((e) => e.details)].filter(
-    (x) => x?.description && /challenge|review/i.test(x.description),
-  );
+const reportedNumber = (value) => Number.isInteger(value) && value >= 0 ? value : "";
+const reportedText = (value) => typeof value === "string" ? value : "";
+function reviewRows(data) {
+  const rows = [];
+  // Keep one row per source object, not one per at-bat. The same at-bat can
+  // contain multiple separate pitch challenges.
+  for (const play of plays(data)) {
+    const atBat = reportedNumber(play?.atBatIndex);
+    const add = (details, description, event) => {
+      if (!details || typeof details !== "object" || Array.isArray(details) || !Object.keys(details).length) return;
+      const type = reportedText(details.reviewType);
+      const team = reportedNumber(details.challengeTeamId);
+      const overturned = typeof details.isOverturned === "boolean" ? (details.isOverturned ? "Yes" : "No") : "";
+      const index = reportedNumber(event?.index);
+      const location = event ? `Event review · At-bat index: ${atBat} · Event index: ${index}` : `Play review · At-bat index: ${atBat}`;
+      const missing = [atBat, type, team, overturned, ...(event ? [index] : [])].includes("");
+      rows.push(`${location} · MLB type code: ${type} · Challenging team ID: ${team} · Overturned: ${overturned} · MLB description: ${reportedText(description)}${missing ? " · Missing fields: unverified" : ""}`);
+    };
+    add(play?.reviewDetails, play?.result?.description);
+    for (const event of play?.playEvents ?? []) add(event?.reviewDetails, event?.details?.description, event);
+  }
+  return rows;
+}
+function balanceRows(game) {
+  return ["away", "home"].flatMap((side) => {
+    const replay = reportedNumber(game?.review?.[side]?.remaining);
+    const abs = reportedNumber(game?.absChallenges?.[side]?.remaining);
+    if (replay === "" && abs === "") return [];
+    const name = reportedText(game?.teams?.[side]?.name);
+    return [`${side === "away" ? "Away" : "Home"}: ${name} · Replay remaining: ${replay} · ABS remaining: ${abs}${[name, replay, abs].includes("") ? " · Missing fields: unverified" : ""}`];
+  });
+}
+function renderBalances(parent, games) {
+  if (!parent) return;
+  const wasOpen = parent.querySelector("details")?.open;
+  parent.replaceChildren();
+  if (!games.length) return;
+  const details = document.createElement("details");
+  details.open = Boolean(wasOpen);
+  const summary = document.createElement("summary");
+  summary.textContent = "MLB challenge balances (latest reported)";
+  details.append(summary);
+  for (const { rows, url, game } of games) for (const label of rows) row(details, label, url, game);
+  parent.append(details);
 }
 function lines(id, rows, url) {
   const p = el(id);
@@ -80,6 +120,7 @@ async function refresh() {
       syncNavigation();
       if (displayedDate !== date) {
         (el("game-list") || el("feed-list")).replaceChildren();
+        renderBalances(el("feed-stats"), []);
         text("status-line", "");
         displayedDate = date;
       }
@@ -94,6 +135,7 @@ async function refresh() {
       const list = el("game-list") || el("feed-list");
       list.replaceChildren();
       let failed = 0;
+      const balances = [];
       for (const g of games) {
         const names = ["away", "home"]
           .map((k) =>
@@ -114,27 +156,25 @@ async function refresh() {
             const d = await get(feed(g.gamePk), signal);
             if (v !== revision) return;
             if (!Array.isArray(d.liveData?.plays?.allPlays)) { failed++; continue; }
-            for (const p of plays(d).slice().reverse())
-              for (const x of reviews(p))
-                row(
-                  list,
-                  [d.gameData?.teams?.away?.name, d.gameData?.teams?.home?.name].join(" at ") + " · " + x.description,
-                  feed(g.gamePk),
-                  g.gamePk,
-                );
+            const url = feed(g.gamePk);
+            const rows = balanceRows(d.gameData);
+            if (rows.length) balances.push({ rows, url, game: g.gamePk });
+            const matchup = [d.gameData?.teams?.away?.name, d.gameData?.teams?.home?.name].join(" at ");
+            for (const label of reviewRows(d).reverse()) row(list, `${matchup} · ${label}`, url, g.gamePk);
           } catch {
             if (v !== revision) return;
             failed++;
           }
         }
       }
+      renderBalances(el("feed-stats"), balances);
       if (!list.children.length)
         text(
           list.id,
           failed
             ? "No review entries loaded."
             : games.length
-              ? "No review descriptions reported."
+              ? "No structured reviews reported."
               : "No games scheduled.",
         );
       text("banner", failed ? `${failed} game feeds unavailable.` : "");
@@ -169,11 +209,13 @@ async function refresh() {
           .filter(Boolean),
         url,
       );
-      lines(
-        "reviews-wrap",
-        ps.flatMap(reviews).map((x) => x.description),
-        url,
-      );
+      const reviews = reviewRows(d).reverse();
+      lines("reviews-wrap", reviews, url);
+      const badge = el("reviews-tab-count");
+      badge.textContent = reviews.length;
+      badge.style.display = reviews.length ? "" : "none";
+      const balances = balanceRows(game);
+      renderBalances(el("live-review-banner-wrap"), balances.length ? [{ rows: balances, url }] : []);
       lines(
         "linescore-wrap",
         (live.linescore?.innings ?? []).map(

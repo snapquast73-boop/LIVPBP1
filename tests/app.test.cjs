@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { JSDOM } = require('jsdom');
 const app = fs.readFileSync('assets/app.js', 'utf8');
-const settle = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
+const settle = () => new Promise(resolve => setImmediate(resolve));
 function setup(page, fetch, query = '') {
   const dom = new JSDOM(fs.readFileSync(page, 'utf8'), {
     url: 'https://example.test/LIVPBP1/' + page + (query || '?date=2024-10-30'), runScripts: 'outside-only'
@@ -121,4 +121,87 @@ test('official historical schedule and game render with exact source links', { s
   assert.deepEqual(rendered.map(r => r.firstChild.textContent), descriptions.map(d => d + ' '));
   for (const row of view.doc.querySelectorAll('article')) assert.equal(row.lastChild.href, gameUrl);
   console.log('Official responses checked:', scheduleUrl, gameUrl);
+});
+
+test('replay feed uses structured reviews rather than descriptions and leaves missing fields blank', async () => {
+  const fixture = { gameData: {
+    teams: { away: { name: 'Away' }, home: { name: 'Home' } },
+    review: { away: { remaining: 0 } }
+  }, liveData: { plays: { allPlays: [
+    { result: { description: 'This description mentions a challenge but is not structured.' } },
+    { atBatIndex: 0, reviewDetails: { reviewType: 'test', isOverturned: true, challengeTeamId: 7 }, playEvents: [
+      { index: 0, reviewDetails: { reviewType: 'test', isOverturned: false, challengeTeamId: 7 }, details: { description: 'Called strike' } },
+      { index: 1, reviewDetails: { reviewType: 'test' }, details: { description: 'Ball' } }
+    ] }
+  ] } } };
+  const { doc } = setup('reviews.html', url => ok(url.includes('/schedule?') ? schedule : fixture));
+  await settle();
+  const rows = [...doc.querySelectorAll('#feed-list article')];
+  assert.equal(rows.length, 3);
+  assert.match(rows[0].textContent, /At-bat index: 0 · Event index: 1 · MLB type code: test · Challenging team ID:  · Overturned:  · MLB description: Ball · Missing fields: unverified/);
+  assert.match(rows[1].textContent, /Event index: 0 .*Overturned: No · MLB description: Called strike/);
+  assert.match(rows[2].textContent, /Play review .*Overturned: Yes · MLB description:/);
+  const balances = [...doc.querySelectorAll('#feed-stats article')];
+  assert.equal(balances.length, 1);
+  assert.match(balances[0].textContent, /Away: Away · Replay remaining: 0 · ABS remaining:  · Missing fields: unverified/);
+  for (const row of [...rows, ...balances]) assert.equal(row.lastChild.href, 'https://statsapi.mlb.com/api/v1.1/game/123/feed/live');
+});
+
+test('official game 822974: each replay and challenge balance matches the MLB source', { skip: !process.env.OFFICIAL_MLB_CHECK }, async () => {
+  const date = '2026-06-01';
+  const scheduleUrl = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}&hydrate=linescore`;
+  const gameUrl = 'https://statsapi.mlb.com/api/v1.1/game/822974/feed/live';
+  const read = async (url) => {
+    const response = await fetch(url, { signal: AbortSignal.timeout(20000) });
+    assert.ok(response.ok, url);
+    return response.json();
+  };
+  const [data, game] = await Promise.all([read(scheduleUrl), read(gameUrl)]);
+  const selectedDay = data.dates.find(day => day.date === date);
+  const selectedGame = selectedDay.games.find(g => g.gamePk === game.gamePk);
+  assert.equal(`https://statsapi.mlb.com${selectedGame.link}`, gameUrl);
+  // Check both views against separately enumerated records from the official feed.
+  const expected = [
+    [84, 3, 139, false], [81, 6, 116, true], [81, 4, 139, true],
+    [79, 1, 116, false], [72, 4, 139, false], [51, null, 139, true], [22, 0, 116, true]
+  ];
+  const scoreboardDate = `?date=${date}`;
+  const replay = setup('reviews.html', url => {
+    if (url === scheduleUrl) return ok({ dates: [{ ...selectedDay, games: [selectedGame] }] });
+    assert.equal(url, gameUrl);
+    return ok(game);
+  }, scoreboardDate);
+  const singleGame = setup('game.html', (url) => {
+    assert.equal(url, gameUrl);
+    return ok(game);
+  }, `${scoreboardDate}&gamePk=822974`);
+  await settle();
+  const { away, home } = game.gameData.teams;
+  for (const [view, root, prefix] of [
+    [replay, '#feed-list', `${away.name} at ${home.name} · `], [singleGame, '#reviews-wrap', '']
+  ]) {
+    const rows = [...view.doc.querySelectorAll(`${root} article`)];
+    assert.equal(rows.length, expected.length);
+    expected.forEach(([atBat, index, id, overturned], i) => {
+      const play = game.liveData.plays.allPlays.find(p => p.atBatIndex === atBat);
+      const event = play.playEvents.find(e => e.index === index);
+      const source = index === null ? play : event;
+      assert.deepEqual([source.reviewDetails.reviewType, source.reviewDetails.challengeTeamId, source.reviewDetails.isOverturned], ['MJ', id, overturned]);
+      const location = index === null ? `Play review · At-bat index: ${atBat}` : `Event review · At-bat index: ${atBat} · Event index: ${index}`;
+      const description = (index === null ? play.result.description : event.details.description) ?? '';
+      assert.equal(rows[i].firstChild.textContent, `${prefix}${location} · MLB type code: MJ · Challenging team ID: ${id} · Overturned: ${overturned ? 'Yes' : 'No'} · MLB description: ${description} `);
+      assert.equal(rows[i].lastChild.href, gameUrl);
+    });
+  }
+  assert.equal(singleGame.doc.querySelector('#reviews-tab-count').textContent, '7');
+  for (const [view, root] of [[replay, '#feed-stats'], [singleGame, '#live-review-banner-wrap']]) {
+    const rows = [...view.doc.querySelectorAll(`${root} article`)];
+    assert.equal(rows.length, 2);
+    assert.deepEqual(rows.map(r => r.firstChild.textContent), [
+      'Away: Detroit Tigers · Replay remaining: 1 · ABS remaining: 1 ',
+      'Home: Tampa Bay Rays · Replay remaining: 1 · ABS remaining: 0 '
+    ]);
+    for (const row of rows) assert.equal(row.lastChild.href, gameUrl);
+  }
+  console.log('Official replay and balances verified:', scheduleUrl, gameUrl);
 });
