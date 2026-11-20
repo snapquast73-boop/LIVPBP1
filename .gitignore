@@ -6,3 +6,6 @@ Thumbs.db
 node_modules/
 .vscode/
 .idea/
+
+# Runtime persistence logs from the optional local server.mjs (never served on Pages)
+data/
