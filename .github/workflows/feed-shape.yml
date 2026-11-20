@@ -1,0 +1,107 @@
+name: Official MLB API shape
+# Independent, official-source assertions for the exact endpoints and fields the
+# site relies on. Pinned to the archived 2024-10-30 World Series Game 5
+# (gamePk 775296): a Final game whose feed/schedule payload does not change,
+# so failures mean an upstream contract change, not a live-data blip.
+# Sources (all official MLB Advanced Media endpoints):
+#   https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=linescore
+#   https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore,probablePitcher(note),decisions,flags,review,game(content(summary))
+#   https://statsapi.mlb.com/api/v1.1/game/775296/feed/live
+#   https://statsapi.mlb.com/api/v1/eventTypes
+# Informational probes (HTTP status only, never fail the build) are labelled INFO.
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  shape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Schedule endpoint matches the archived game (hard assertions)
+        run: |
+          set -euo pipefail
+          url='https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=linescore'
+          curl -fsS --retry 3 "$url" > /tmp/schedule.json
+          echo "GET $url"
+          jq -e '(.dates|length==1)
+            and (.dates[0].date=="2024-10-30")
+            and (.dates[0].games|length==1)
+            and (.dates[0].games[0].gamePk==775296)
+            and (.dates[0].games[0].status.detailedState=="Final")
+            and (.dates[0].games[0].status.abstractGameCode=="F")
+            and (.dates[0].games[0].teams.away.team.id==119)
+            and (.dates[0].games[0].teams.away.team.name=="Los Angeles Dodgers")
+            and (.dates[0].games[0].teams.home.team.id==147)
+            and (.dates[0].games[0].teams.home.team.name=="New York Yankees")
+            and (.dates[0].games[0].teams.away.score==7)
+            and (.dates[0].games[0].teams.home.score==6)
+            and (.dates[0].games[0].linescore.innings|length==9)
+            and (.dates[0].games[0].linescore.teams.away.runs==7)
+            and (.dates[0].games[0].linescore.teams.home.runs==6)
+            and (.dates[0].games[0].venue.name=="Yankee Stadium")' \
+            /tmp/schedule.json > /dev/null && echo "PASS schedule hydrate=linescore (16 assertions)"
+      - name: Full hydrate string returns the documented review/decisions counters (hard assertions)
+        run: |
+          set -euo pipefail
+          hydrate='team,linescore,probablePitcher(note),decisions,flags,review,game(content(summary))'
+          url="https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=${hydrate}"
+          curl -fsS --retry 3 "$url" > /tmp/schedule-full.json
+          echo "GET $url"
+          jq -e '(.dates[0].games[0].decisions.winner.fullName=="Blake Treinen")
+            and (.dates[0].games[0].review.hasChallenges==true)
+            and (.dates[0].games[0].review.away.remaining==2)
+            and (.dates[0].games[0].review.home.remaining==1)
+            and (.dates[0].games[0].review.home.used==1)
+            and (.dates[0].games[0].teams.away.leagueRecord.wins==4)
+            and (.dates[0].games[0].teams.home.leagueRecord.wins==1)' \
+            /tmp/schedule-full.json > /dev/null && echo "PASS schedule full hydrate (7 assertions)"
+      - name: Live feed endpoint contract for gamePk 775296 (hard assertions + INFO probes)
+        run: |
+          set -euo pipefail
+          url='https://statsapi.mlb.com/api/v1.1/game/775296/feed/live'
+          curl -fsS --retry 3 "$url" > /tmp/feed.json
+          echo "GET $url"
+          jq -e '(.gamePk==775296)
+            and (.gameData.status.detailedState=="Final")
+            and (.gameData.teams.away.id==119)
+            and (.gameData.teams.away.name=="Los Angeles Dodgers")
+            and (.gameData.teams.away.record.wins==4)
+            and (.gameData.teams.away.record.losses==1)
+            and (.gameData.teams.home.id==147)
+            and (.gameData.teams.home.name=="New York Yankees")
+            and (.gameData.teams.home.record.wins==1)
+            and (.gameData.teams.home.record.losses==4)
+            and (.gameData.players|type=="object")
+            and (.gameData.players|length>0)
+            and (.liveData.plays.allPlays|type=="array")
+            and (.liveData.plays.allPlays|length>0)
+            and (.liveData.boxscore.teams.away.players|type=="object")
+            and (.liveData.boxscore.teams.away.players|length>0)
+            and ([.liveData.boxscore.teams.away.players[]|select(.stats.batting.atBats!=null)]|length>0)' \
+            /tmp/feed.json > /dev/null && echo "PASS feed/live (17 assertions)"
+          echo "--- INFO (reported, not asserted) ---"
+          jq -r '"INFO linescore.innings=\(.liveData.linescore.innings|length) teams.away.runs=\(.liveData.linescore.teams.away.runs)"' /tmp/feed.json
+          jq -r '"INFO plays.allPlays=\(.liveData.plays.allPlays|length)"' /tmp/feed.json
+          jq -r '"INFO play-level reviewDetails=\([.liveData.plays.allPlays[]|select(.reviewDetails!=null)]|length)"' /tmp/feed.json
+          jq -r '"INFO event-level reviewDetails=\([.liveData.plays.allPlays[].playEvents[]?|select(.reviewDetails!=null)]|length)"' /tmp/feed.json
+          jq -r '"INFO gameData.review=\(.gameData.review // "absent")"' /tmp/feed.json
+          jq -r '"INFO gameData.absChallenges=\(.gameData.absChallenges // "absent")"' /tmp/feed.json
+      - name: Official event-types registry carries the documented ruling-pending codes (hard assertions)
+        run: |
+          set -euo pipefail
+          url='https://statsapi.mlb.com/api/v1/eventTypes'
+          curl -fsS --retry 3 "$url" > /tmp/event-types.json
+          echo "GET $url"
+          jq -e '([.[]|select(.code=="os_ruling_pending_primary")]|length==1)
+            and ([.[]|select(.code=="os_ruling_pending_prior")]|length==1)' \
+            /tmp/event-types.json > /dev/null && echo "PASS eventTypes registry (2 assertions)"
+      - name: INFO MLB static logo CDN responds (never fails the build)
+        continue-on-error: true
+        run: |
+          url='https://www.mlbstatic.com/team-logos/119.svg'
+          code=$(curl -sS -o /tmp/logo.svg -w '%{http_code}' --retry 1 --max-time 20 "$url" || echo "000")
+          type=$(file --mime-type -b /tmp/logo.svg 2>/dev/null || echo unknown)
+          bytes=$(wc -c < /tmp/logo.svg 2>/dev/null || echo 0)
+          echo "INFO mlbstatic team logo 119.svg -> HTTP $code, type=$type, bytes=$bytes"
