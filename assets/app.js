@@ -59,6 +59,8 @@ async function get(url, signal) {
 }
 const feed = (id) => `${mlb}/api/v1.1/game/${id}/feed/live`;
 const plays = (data) => data.liveData?.plays?.allPlays ?? [];
+const reportedNumber = (value) => Number.isSafeInteger(value) && value >= 0 ? value : "";
+const reportedText = (value) => typeof value === "string" ? value : "";
 const pendingCodes = new Set(["os_ruling_pending_primary", "os_ruling_pending_prior"]);
 const replayFilters = [
   ["all", "All", () => true],
@@ -75,7 +77,8 @@ function reviewRows(data, game) {
     const seen = new Set();
     const context = [teams?.away?.name, teams?.home?.name].filter(Boolean).join(" at ");
     const inning = [p.about?.halfInning, p.about?.inning].filter(x => x != null).join(" ");
-    const add = (details, info) => {
+    const atBat = reportedNumber(p.about?.atBatIndex);
+    const add = (details, info, event) => {
       for (const d of Array.isArray(details) ? details : [details]) {
         if (!d || typeof d !== "object" || !Object.keys(d).length) continue;
         if (d.id != null) {
@@ -84,14 +87,18 @@ function reviewRows(data, game) {
         }
         // MJ was cross-checked with MLB's own ABS clip for game 822974.
         // Other codes stay opaque; don't reconstruct their labels from prefixes.
-        const code = d.reviewType;
+        const code = reportedText(d.reviewType);
         const kind = code === "MJ" ? "abs" : "replay";
         const active = d.inProgress === true;
         const outcome = active ? "Under review" : d.inProgress === false
           ? d.isOverturned === true ? "Overturned" : d.isOverturned === false ? "Not overturned" : ""
           : "";
-        entries.push({ context, inning, kind, active, outcome, code, url, game,
-          description: info?.description, missing: !outcome || !info?.description || !code });
+        const team = reportedNumber(d.challengeTeamId);
+        const index = reportedNumber(event?.index);
+        const description = reportedText(info?.description);
+        const location = `At-bat index: ${atBat}${event ? ` · Event index: ${index}` : ""} · Challenging team ID: ${team}`;
+        entries.push({ context, inning, kind, active, outcome, code, url, game, location, description,
+          missing: !outcome || !description || !code || atBat === "" || team === "" || (event && index === "") });
       }
       if (pendingCodes.has(info?.eventType)) {
         entries.push({ context, inning, kind: "pending", code: info.eventType, url, game,
@@ -99,21 +106,21 @@ function reviewRows(data, game) {
       }
     };
     add(p.reviewDetails, p.result);
-    for (const event of (p.playEvents ?? []).slice().reverse()) add(event.reviewDetails, event.details);
+    for (const event of (p.playEvents ?? []).slice().reverse()) add(event.reviewDetails, event.details, event);
   }
   return entries;
 }
 function renderReviewRow(list, entry, detailsLink = false) {
-  const { context, inning, kind, code, outcome, description, missing, url, game } = entry;
+  const { context, inning, kind, code, outcome, description, missing, url, game, location } = entry;
   const label = { replay: "Replay review", abs: "ABS challenge", pending: "Official Scorer Ruling Pending" }[kind];
-  const line = [context, inning, label, code, outcome, description,
+  const line = [context, inning, label, code, outcome, description, location,
     missing ? "Some fields unverified or not reported" : ""].filter(Boolean).join(" · ");
   row(list, line, url, detailsLink ? game : undefined);
 }
 function renderReplay() {
   const list = el("feed-list"), stats = el("feed-stats");
   if (!replayScan || replayScan.date !== date) return;
-  const { entries, total, failed } = replayScan;
+  const { entries, balances, total, failed } = replayScan;
   const [, , includes] = replayFilters.find(([key]) => key === replayFilter);
   const visible = entries.filter(includes);
   list.replaceChildren();
@@ -122,8 +129,18 @@ function renderReplay() {
     ? "No matching entries in the available feeds."
     : total ? "No matching review events for this date/filter." : "No games scheduled.";
   if (failed === total && failed) list.textContent = "No review entries loaded.";
+  const wasOpen = stats.querySelector("details")?.open;
   stats.textContent = failed ? "Totals unverified: some game feeds are unavailable."
     : replayFilters.slice(1).map(([, label, match]) => `${label}: ${entries.filter(match).length}`).join(" · ");
+  if (balances.length) {
+    const details = document.createElement("details");
+    details.open = Boolean(wasOpen);
+    const summary = document.createElement("summary");
+    summary.textContent = "MLB challenge counters (latest reported)";
+    details.append(summary);
+    for (const [label, source, game] of balances) row(details, label, source, game);
+    stats.append(details);
+  }
   for (const b of el("feed-tabs").querySelectorAll("button")) {
     b.setAttribute("aria-pressed", String(b.dataset.filter === replayFilter));
     b.classList.toggle("tab-on", b.dataset.filter === replayFilter);
@@ -140,21 +157,20 @@ async function scanReplay(games, signal) {
       try {
         const data = await get(feed(id), signal);
         if (data.gamePk !== id || !Array.isArray(data.liveData?.plays?.allPlays)) continue;
-        results[i] = reviewRows(data, id);
+        results[i] = { entries: reviewRows(data, id), balances: challengeCounters(data, id) };
       } catch { /* Report unavailable game feeds separately from an empty feed. */ }
     }
   }
   await Promise.all(Array.from({ length: Math.min(4, games.length) }, worker));
-  return { entries: results.flat(), total: games.length, failed: games.length - results.filter(Boolean).length };
+  return {
+    entries: results.flatMap(r => r.entries),
+    balances: results.flatMap(r => r.balances),
+    total: games.length,
+    failed: games.length - results.filter(Boolean).length,
+  };
 }
-function renderGameReviews(data, url, id) {
-  const list = el("reviews-wrap");
-  list.replaceChildren();
-  if (!Array.isArray(data.liveData?.plays?.allPlays)) {
-    list.textContent = "Review entries unverified: play feed unavailable.";
-    return;
-  }
-  for (const entry of reviewRows(data, id)) renderReviewRow(list, entry);
+function challengeCounters(data, id) {
+  const lines = [];
   for (const [key, label, fields] of [
     ["review", "Replay challenge counters", [["used", "used"], ["remaining", "remaining"]]],
     ["absChallenges", "ABS challenge counters", [["usedSuccessful", "successful"], ["usedFailed", "unsuccessful"], ["remaining", "remaining"]]],
@@ -164,9 +180,25 @@ function renderGameReviews(data, url, id) {
       const present = ([field]) => Number.isSafeInteger(values?.[field]) && values[field] >= 0;
       if (!fields.some(present)) continue;
       const counters = fields.map(([field, caption]) => `${caption}: ${present([field]) ? values[field] : ""}`).join(" · ");
-      row(list, `${label} (${side}) · ${counters}${fields.every(present) ? "" : " · Missing values unverified"}`, url);
+      const name = reportedText(data.gameData?.teams?.[side]?.name);
+      lines.push([`${label} (${side})${name ? ` · ${name}` : ""} · ${counters}${fields.every(present) ? "" : " · Missing values unverified"}`, feed(id), id]);
     }
   }
+  return lines;
+}
+function renderGameReviews(data, id) {
+  const list = el("reviews-wrap"), badge = el("reviews-tab-count");
+  list.replaceChildren();
+  badge.style.display = "none";
+  if (!Array.isArray(data.liveData?.plays?.allPlays)) {
+    list.textContent = "Review entries unverified: play feed unavailable.";
+    return;
+  }
+  const entries = reviewRows(data, id);
+  badge.textContent = entries.length;
+  if (entries.length) badge.style.display = "";
+  for (const entry of entries) renderReviewRow(list, entry);
+  for (const [label, source] of challengeCounters(data, id)) row(list, label, source);
   if (!list.children.length) list.textContent = "No review entries or challenge counters reported.";
 }
 function lines(id, rows, url) {
@@ -252,7 +284,7 @@ async function refresh() {
           .filter(Boolean),
         url,
       );
-      renderGameReviews(d, url, id);
+      renderGameReviews(d, id);
       lines(
         "linescore-wrap",
         (live.linescore?.innings ?? []).map(

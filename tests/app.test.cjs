@@ -120,6 +120,11 @@ test('official historical schedule and game render with exact source links', { s
   assert.ok(descriptions.length > 0);
   assert.deepEqual(rendered.map(r => r.firstChild.textContent), descriptions.map(d => d + ' '));
   for (const row of view.doc.querySelectorAll('article')) assert.equal(row.lastChild.href, gameUrl);
+  const replay = game.liveData.plays.allPlays.find(play => play.reviewDetails?.reviewType === 'MV');
+  assert.ok(replay, 'archived game carries a structured non-ABS review');
+  const review = [...view.doc.querySelectorAll('#reviews-wrap article')].find(row => row.textContent.includes('Replay review · MV'));
+  assert.ok(review.textContent.includes(replay.result.description));
+  assert.equal(review.lastChild.href, gameUrl);
   console.log('Official responses checked:', scheduleUrl, gameUrl);
 });
 
@@ -128,11 +133,12 @@ test('replay filters use structured reviews, independent pitch challenges and pe
   const fixture = {
     gamePk: 123,
     liveData: { plays: { allPlays: [{
+      about: { atBatIndex: 0 },
       result: { description: 'Scoring is pending.', eventType: 'os_ruling_pending_primary' },
       reviewDetails: { reviewType: 'MV', inProgress: true },
       playEvents: [
         { details: { description: 'A non-review mentions a challenge.' } },
-        { details: { description: 'First pitch' }, reviewDetails: { reviewType: 'MJ', inProgress: false, isOverturned: true } },
+        { index: 1, details: { description: 'First pitch' }, reviewDetails: { reviewType: 'MJ', inProgress: false, isOverturned: true, challengeTeamId: 7 } },
         { details: { description: 'Second pitch' }, reviewDetails: { reviewType: 'MJ', inProgress: false } },
       ],
     }] } },
@@ -213,14 +219,21 @@ test('official day and feed contain the rendered ABS rows and reported counters'
     if (review.inProgress === false && typeof review.isOverturned === 'boolean')
       assert.ok(rows[i].textContent.includes(review.isOverturned ? ' · Overturned' : ' · Not overturned'));
     if (detail?.description) assert.ok(rows[i].textContent.includes(detail.description));
+    assert.ok(rows[i].textContent.includes(`Challenging team ID: ${review.challengeTeamId}`));
   });
   const view = setup('game.html', () => ok(sourceGame), `?gamePk=${gamePk}`);
   await settle();
   const counters = [...view.doc.querySelectorAll('#reviews-wrap article')].slice(-4);
+  const feedCounters = [...doc.querySelectorAll('#feed-stats details article')];
+  assert.deepEqual(feedCounters.map(r => r.firstChild.textContent), counters.map(r => r.firstChild.textContent));
+  assert.ok(feedCounters.every(r => r.lastChild.href === gameUrl));
   for (const [i, key] of ['review', 'absChallenges'].entries()) {
     for (const [j, side] of ['away', 'home'].entries()) {
       assert.equal(counters[i * 2 + j].lastChild.href, gameUrl);
-      assert.ok(counters[i * 2 + j].textContent.includes(`remaining: ${sourceGame.gameData[key][side].remaining}`));
+      const fields = key === 'review' ? { used: 'used' } : { usedSuccessful: 'successful', usedFailed: 'unsuccessful' };
+      for (const [field, label] of Object.entries({ ...fields, remaining: 'remaining' })) {
+        assert.ok(counters[i * 2 + j].textContent.includes(`${label}: ${sourceGame.gameData[key][side][field]}`));
+      }
     }
   }
   console.log('Official replay sources checked:', scheduleUrl, gameUrl);
