@@ -1,0 +1,26 @@
+name: Verify public Pages files
+on:
+  pull_request:
+  deployment_status:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  published:
+    if: github.event_name != 'deployment_status' || (github.event.deployment.environment == 'github-pages' && github.event.deployment_status.state == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch public entry points and required assets
+        env:
+          BASE: https://snapquast73-boop.github.io/LIVPBP1/
+        run: |
+          for file in index.html game.html reviews.html flagged.html assets/app.js assets/style.css; do
+            curl --fail --silent --show-error --retry 3 "$BASE$file" -o "$RUNNER_TEMP/body"
+            test -s "$RUNNER_TEMP/body"
+            case "$file" in
+              *.js) cp "$RUNNER_TEMP/body" "$RUNNER_TEMP/app.js"; node --check "$RUNNER_TEMP/app.js" ;;
+              *.css) grep -q '{' "$RUNNER_TEMP/body" ;;
+              flagged.html) grep -q '<h1>Flagged for Review</h1>' "$RUNNER_TEMP/body" ;;
+              *) grep -q 'src="assets/app.js"' "$RUNNER_TEMP/body" ;;
+            esac
+          done
