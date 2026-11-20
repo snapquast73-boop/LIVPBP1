@@ -1,165 +1,137 @@
 (function (global) {
   'use strict';
 
-  const { $, esc, teamLogoUrl, todayStr, shiftDate, formatDateLabel, formatGameTime, showBanner, setStatus } = global.MlbUi;
-  const { getSchedule } = global.MlbApi;
+  const { MlbApi, MlbUi } = global;
+  let currentDate = new URLSearchParams(location.search).get('date') || MlbApi.todayIso();
+  let activeFilter = 'all';
+  let gamesCache = [];
+  let pollTimer = null;
 
-  let currentDate = todayStr();
-  let currentFilter = 'all';
-  let cachedGames = [];
-  let timerId = null;
-
-  function classifyGame(g) {
-    const abstract = g.status?.abstractGameState || '';
-    if (abstract === 'Live') return 'live';
-    if (abstract === 'Final') return 'final';
-    return 'scheduled';
+  function setDate(iso) {
+    currentDate = iso;
+    const picker = document.getElementById('date-picker');
+    const label = document.getElementById('date-label');
+    if (picker) picker.value = currentDate;
+    if (label) label.textContent = MlbUi.formatDateLabel(currentDate);
+    const url = new URL(location.href);
+    url.searchParams.set('date', currentDate);
+    history.replaceState(null, '', url.toString());
+    loadGames();
   }
 
-  function renderTabs() {
-    const tabsEl = $('tabs');
+  function renderTabs(games) {
+    const tabsEl = document.getElementById('tabs');
     if (!tabsEl) return;
-    const counts = { all: cachedGames.length, live: 0, final: 0, scheduled: 0 };
-    for (const g of cachedGames) counts[classifyGame(g)]++;
-
+    const counts = { all: games.length, live: 0, final: 0, preview: 0 };
+    for (const g of games) {
+      counts[MlbUi.gameStateBucket(g)]++;
+    }
     const defs = [
-      { id: 'all', label: 'All Games' },
-      { id: 'live', label: 'Live' },
-      { id: 'final', label: 'Final' },
-      { id: 'scheduled', label: 'Scheduled' }
+      ['all', `All (${counts.all})`],
+      ['live', `Live (${counts.live})`],
+      ['final', `Final (${counts.final})`],
+      ['preview', `Upcoming (${counts.preview})`]
     ];
+    tabsEl.innerHTML = defs.map(([id, text]) => (
+      `<button class="tab-btn ${activeFilter === id ? 'tab-on' : ''}" data-filter="${id}">${MlbUi.esc(text)}</button>`
+    )).join('');
 
-    tabsEl.innerHTML = defs
-      .map(
-        (d) =>
-          `<button class="tab-btn ${currentFilter === d.id ? 'tab-on' : ''}" data-filter="${d.id}">` +
-          `${esc(d.label)} <span class="tab-badge">${counts[d.id]}</span></button>`
-      )
-      .join('');
-
-    tabsEl.querySelectorAll('.tab-btn').forEach((btn) => {
+    tabsEl.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        currentFilter = btn.getAttribute('data-filter');
-        renderTabs();
-        renderGames();
+        activeFilter = btn.dataset.filter;
+        renderTabs(gamesCache);
+        renderGames(gamesCache);
       });
     });
   }
 
-  function renderGames() {
-    const listEl = $('game-list');
+  function renderGames(games) {
+    const listEl = document.getElementById('game-list');
     if (!listEl) return;
-
-    const filtered =
-      currentFilter === 'all'
-        ? cachedGames
-        : cachedGames.filter((g) => classifyGame(g) === currentFilter);
+    const filtered = activeFilter === 'all'
+      ? games
+      : games.filter(g => MlbUi.gameStateBucket(g) === activeFilter);
 
     if (!filtered.length) {
-      listEl.innerHTML = `<div class="empty-state">No games found for ${esc(formatDateLabel(currentDate))}.</div>`;
+      listEl.innerHTML = `<div class="empty-state">No games found for ${MlbUi.esc(MlbUi.formatDateLabel(currentDate))}.</div>`;
       return;
     }
 
-    listEl.innerHTML = filtered
-      .map((g) => {
-        const state = classifyGame(g);
-        const away = g.teams?.away || {};
-        const home = g.teams?.home || {};
-        const awayTeam = away.team || {};
-        const homeTeam = home.team || {};
-        const ls = g.linescore || {};
-        const statusText =
-          state === 'live'
-            ? `${ls.inningState || ''} ${ls.currentInningOrdinal || ''}`.trim() || g.status?.detailedState || 'Live'
-            : state === 'final'
-            ? g.status?.detailedState || 'Final'
-            : formatGameTime(g.gameDate);
+    listEl.innerHTML = filtered.map(g => {
+      const bucket = MlbUi.gameStateBucket(g);
+      const away = g.teams?.away || {};
+      const home = g.teams?.home || {};
+      const awayTeam = away.team || {};
+      const homeTeam = home.team || {};
+      const awayScore = away.score != null ? away.score : '';
+      const homeScore = home.score != null ? home.score : '';
+      const statusText = bucket === 'live'
+        ? (MlbUi.formatInningState(g.linescore) || g.status?.detailedState || 'Live')
+        : bucket === 'final'
+          ? (g.status?.detailedState || 'Final')
+          : MlbUi.formatStartTime(g.gameDate) || g.status?.detailedState || 'Scheduled';
 
-        const awayScore = away.score != null ? away.score : '-';
-        const homeScore = home.score != null ? home.score : '-';
-        const awayWin = state === 'final' && away.isWinner;
-        const homeWin = state === 'final' && home.isWinner;
+      const pillClass = bucket === 'live' ? 'status-live' : bucket === 'final' ? 'status-final' : 'status-preview';
+      const venue = g.venue?.name || '';
+      const awayWin = bucket === 'final' && away.isWinner;
+      const homeWin = bucket === 'final' && home.isWinner;
 
-        const awayRec = away.leagueRecord ? `${away.leagueRecord.wins}-${away.leagueRecord.losses}` : '';
-        const homeRec = home.leagueRecord ? `${home.leagueRecord.wins}-${home.leagueRecord.losses}` : '';
-
-        return (
-          `<a class="game-card ${state === 'live' ? 'is-live' : ''}" href="game.html?gamePk=${encodeURIComponent(g.gamePk)}">` +
-          `<div class="gc-top">` +
-          `<span class="${state === 'live' ? 'gc-status-live' : ''}">${esc(statusText)}</span>` +
-          `<span>${esc(g.venue?.name || '')}</span>` +
-          `</div>` +
-          `<div class="gc-teams">` +
-          `<div class="gc-team ${awayWin ? 'gc-winner' : homeWin ? 'gc-loser' : ''}">` +
-          `<img class="gc-logo" src="${esc(teamLogoUrl(awayTeam.id))}" alt="${esc(awayTeam.abbreviation || '')}" loading="lazy">` +
-          `<span class="gc-name">${esc(awayTeam.name || awayTeam.teamName || 'Away')}</span>` +
-          `<span class="gc-record">${esc(awayRec)}</span>` +
-          `<span class="gc-score">${esc(awayScore)}</span>` +
-          `</div>` +
-          `<div class="gc-team ${homeWin ? 'gc-winner' : awayWin ? 'gc-loser' : ''}">` +
-          `<img class="gc-logo" src="${esc(teamLogoUrl(homeTeam.id))}" alt="${esc(homeTeam.abbreviation || '')}" loading="lazy">` +
-          `<span class="gc-name">${esc(homeTeam.name || homeTeam.teamName || 'Home')}</span>` +
-          `<span class="gc-record">${esc(homeRec)}</span>` +
-          `<span class="gc-score">${esc(homeScore)}</span>` +
-          `</div>` +
-          `</div>` +
-          `<div class="gc-foot">` +
-          `<span>${state === 'live' && ls.outs != null ? `${ls.outs} Out${ls.outs === 1 ? '' : 's'}` : esc(g.seriesDescription || 'MLB')}</span>` +
-          `<span>Open Game →</span>` +
-          `</div>` +
-          `</a>`
-        );
-      })
-      .join('');
+      return `
+        <a class="game-card" href="game.html?gamePk=${encodeURIComponent(g.gamePk)}">
+          <div class="game-card-top">
+            <span class="status-pill ${pillClass}">${MlbUi.esc(statusText)}</span>
+            <span>${MlbUi.esc(venue)}</span>
+          </div>
+          <div class="team-row">
+            <img class="team-logo" src="${MlbApi.teamLogoUrl(awayTeam.id)}" alt="" loading="lazy">
+            <span class="team-name">${MlbUi.esc(awayTeam.name || awayTeam.teamName || 'Away')}</span>
+            <span class="team-record">${away.leagueRecord ? `${away.leagueRecord.wins}-${away.leagueRecord.losses}` : ''}</span>
+            <span class="team-score ${awayWin ? 'winner' : ''}">${MlbUi.esc(awayScore)}</span>
+          </div>
+          <div class="team-row">
+            <img class="team-logo" src="${MlbApi.teamLogoUrl(homeTeam.id)}" alt="" loading="lazy">
+            <span class="team-name">${MlbUi.esc(homeTeam.name || homeTeam.teamName || 'Home')}</span>
+            <span class="team-record">${home.leagueRecord ? `${home.leagueRecord.wins}-${home.leagueRecord.losses}` : ''}</span>
+            <span class="team-score ${homeWin ? 'winner' : ''}">${MlbUi.esc(homeScore)}</span>
+          </div>
+          <div class="game-card-foot">
+            <span>${g.linescore?.balls != null && bucket === 'live' ? `${g.linescore.balls}-${g.linescore.strikes}, ${g.linescore.outs} out` : (g.status?.detailedState || '')}</span>
+            <span>Box & PBP →</span>
+          </div>
+        </a>
+      `;
+    }).join('');
   }
 
-  async function loadSchedule() {
-    const picker = $('date-picker');
-    const label = $('date-label');
-    if (picker) picker.value = currentDate;
-    if (label) label.textContent = formatDateLabel(currentDate);
-
-    setStatus('Loading schedule from statsapi.mlb.com…');
-    showBanner('');
-
+  async function loadGames() {
+    clearTimeout(pollTimer);
+    MlbUi.showBanner('');
+    MlbUi.setStatusLine(`Loading ${currentDate} from statsapi.mlb.com…`);
     try {
-      const data = await getSchedule(currentDate);
-      cachedGames = (data.dates && data.dates[0] && data.dates[0].games) || [];
-      renderTabs();
-      renderGames();
-      setStatus(`Updated ${new Date().toLocaleTimeString()} · ${cachedGames.length} game(s)`);
+      const data = await MlbApi.getSchedule(currentDate);
+      gamesCache = data?.dates?.[0]?.games || [];
+      renderTabs(gamesCache);
+      renderGames(gamesCache);
+      const hasLive = gamesCache.some(g => MlbUi.gameStateBucket(g) === 'live');
+      MlbUi.setStatusLine(`Updated ${new Date().toLocaleTimeString()} · ${gamesCache.length} game(s)`);
+      if (hasLive) {
+        pollTimer = setTimeout(loadGames, 20000);
+      }
     } catch (err) {
-      showBanner(`Unable to load schedule from MLB StatsAPI: ${err.message}`, true);
-      setStatus('Error loading schedule');
+      MlbUi.showBanner(`Unable to load MLB schedule: ${err.message}`, true);
+      MlbUi.setStatusLine('Error loading schedule');
     }
-
-    if (timerId) clearTimeout(timerId);
-    const hasLive = cachedGames.some((g) => classifyGame(g) === 'live');
-    timerId = setTimeout(loadSchedule, hasLive ? 15000 : 60000);
   }
 
-  const Scoreboard = {
-    prevDay() {
-      currentDate = shiftDate(currentDate, -1);
-      loadSchedule();
-    },
-    nextDay() {
-      currentDate = shiftDate(currentDate, 1);
-      loadSchedule();
-    },
-    pickDate() {
-      const picker = $('date-picker');
-      if (picker && picker.value) {
-        currentDate = picker.value;
-        loadSchedule();
-      }
-    },
-    today() {
-      currentDate = todayStr();
-      loadSchedule();
+  global.Scoreboard = {
+    prevDay: () => setDate(MlbApi.shiftDate(currentDate, -1)),
+    nextDay: () => setDate(MlbApi.shiftDate(currentDate, 1)),
+    today: () => setDate(MlbApi.todayIso()),
+    pickDate: () => {
+      const picker = document.getElementById('date-picker');
+      if (picker && picker.value) setDate(picker.value);
     }
   };
 
-  global.Scoreboard = Scoreboard;
-  document.addEventListener('DOMContentLoaded', loadSchedule);
+  document.addEventListener('DOMContentLoaded', () => setDate(currentDate));
 })(window);

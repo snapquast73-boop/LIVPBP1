@@ -1,24 +1,5 @@
-# Coordination Board
+# Coordination
 
-## Session Info
-- **Session ID**: `arena-89707fce`
-- **Branch**: `arena/89707fce-livpbp1`
-- **Status**: `done`
-
-## Tasks
-| Task | Status | Owner | Scope | Notes |
-| --- | --- | --- | --- | --- |
-| Audit repository & identify missing assets | done | `arena-89707fce` | `COORDINATION.md` | Found `assets/css/style.css` and 8 `assets/js/*.js` files referenced in HTML but missing from repo. |
-| Implement `assets/css/style.css` | done | `arena-89707fce` | `assets/css/style.css` | Stylesheet for `index.html`, `game.html`, `reviews.html`, `404.html`. |
-| Implement `assets/js/api.js` | done | `arena-89707fce` | `assets/js/api.js` | MLB StatsAPI (`statsapi.mlb.com`) client. |
-| Implement `assets/js/ui.js` | done | `arena-89707fce` | `assets/js/ui.js` | Shared UI helpers, formatting, badges, logos. |
-| Implement `assets/js/reviews.js` & `assets/js/feed-log.js` | done | `arena-89707fce` | `assets/js/reviews.js`, `assets/js/feed-log.js` | Replay review detection and `localStorage` feed logging. |
-| Implement `assets/js/scoreboard.js` | done | `arena-89707fce` | `assets/js/scoreboard.js` | Scoreboard page controller (`index.html`). |
-| Implement `assets/js/props.js` & `assets/js/game.js` | done | `arena-89707fce` | `assets/js/props.js`, `assets/js/game.js` | Game detail page controller (`game.html`). |
-| Implement `assets/js/reviews-feed.js` | done | `arena-89707fce` | `assets/js/reviews-feed.js` | Replay review feed page controller (`reviews.html`). |
-| Test locally & verify GitHub Pages deployment | done | `arena-89707fce` | `COORDINATION.md` | All JS files verified with `node --check`; PR created and merged to `main`. |
-
-## Sources & Verification Log
-- Official MLB StatsAPI host: `https://statsapi.mlb.com` (referenced in `index.html`, `game.html`, `reviews.html`).
-- Official MLB static assets: `https://www.mlbstatic.com`, `https://img.mlbstatic.com`.
-- Syntax verification: `node --check assets/js/*.js` passed for all 8 files.
+- In progress — aed6f5e2 (integration): audit and restore Pages; scope: site, documentation, deployment and tests. No other remote task branches or existing board found.
+- Local integration checks: `node --check assets/app.js`, `python3 tests/check.py` passed. Verified the original commit lacks all referenced asset files. [Snapshot](https://github.com/snapquast73-boop/LIVPBP1/tree/dad37b4cf86c008e68320bc027d3a51001f4d710); [GitHub Pages configuration](https://api.github.com/repos/snapquast73-boop/LIVPBP1/pages) reports main/root. No external branches to integrate.
+- Needs review — aed6f5e2, `flagged.html`: exact client parity unavailable. MLB live data changes; link each generated row to the actual MLB request and do not substitute zeros. Representative official [schedule](https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30) is checked by PR workflow, not certification of every future value.

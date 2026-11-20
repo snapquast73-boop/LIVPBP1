@@ -1,33 +1,30 @@
 (function (global) {
   'use strict';
 
-  const PREFIX = 'mlb_pbp_feed_log_';
+  const STORAGE_PREFIX = 'mlb_live_pbp_log_';
   const MAX_DATES = 7;
   const MAX_ROWS = 500;
 
-  function loadDateLog(dateStr) {
+  function loadLog(dateIso) {
     try {
-      const raw = localStorage.getItem(PREFIX + dateStr);
+      const raw = localStorage.getItem(STORAGE_PREFIX + dateIso);
       if (!raw) return [];
       const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        console.warn('[feed-log] Malformed log for', dateStr, '— dropping.');
-        return [];
-      }
+      if (!Array.isArray(parsed)) return [];
       return parsed;
     } catch (err) {
-      console.warn('[feed-log] Failed to read log for', dateStr, err);
+      console.warn('FeedLog: malformed log dropped for', dateIso, err);
       return [];
     }
   }
 
-  function saveDateLog(dateStr, rows) {
+  function saveLog(dateIso, rows) {
     try {
       const trimmed = Array.isArray(rows) ? rows.slice(0, MAX_ROWS) : [];
-      localStorage.setItem(PREFIX + dateStr, JSON.stringify(trimmed));
+      localStorage.setItem(STORAGE_PREFIX + dateIso, JSON.stringify(trimmed));
       pruneOldDates();
     } catch (err) {
-      console.warn('[feed-log] Failed to save log for', dateStr, err);
+      console.warn('FeedLog: unable to save log', err);
     }
   }
 
@@ -36,19 +33,37 @@
       const keys = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && k.startsWith(PREFIX)) keys.push(k);
+        if (k && k.startsWith(STORAGE_PREFIX)) keys.push(k);
       }
       keys.sort().reverse();
       for (let i = MAX_DATES; i < keys.length; i++) {
         localStorage.removeItem(keys[i]);
       }
-    } catch (_) {
-      // ignore storage quota / access errors
-    }
+    } catch (_) {}
+  }
+
+  function playChime() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.36);
+    } catch (_) {}
   }
 
   global.FeedLog = {
-    loadDateLog,
-    saveDateLog
+    loadLog,
+    saveLog,
+    playChime
   };
 })(window);
