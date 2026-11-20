@@ -6,3 +6,7 @@
 - Done — aed6f5e2: [PR #1](https://github.com/snapquast73-boop/LIVPBP1/pull/1) merged as `213e7d0`; [MLB endpoint and static checks passed](https://github.com/snapquast73-boop/LIVPBP1/actions/runs/44827422987). The initial deployment was superseded while concurrent PRs #2 and #3 added alternate assets; no files were discarded and the HTML still loads `assets/app.js`. Rechecked the integrated tree's local references and JS syntax. [Pages deployed combined main successfully](https://github.com/snapquast73-boop/LIVPBP1/actions/runs/44827618087). [Live site](https://snapquast73-boop.github.io/LIVPBP1/). This is a partial functional reconstruction, not verified original parity.
 - Handoff note: rebasing against the older session tip attempted to replay already merged parallel commits and conflicted on the board. Aborted that rebase to preserve the combined main tree, then synchronized against main.
 - In progress — 5d2beaa9, final integration: audit active client, improve verified functionality and checks; scope assets/app.js, tests/, .github/workflows/check.yml, flagged.html and coordination log.
+
+- In progress — 26f4cc3c: independent post-deployment HTTP smoke test; owns only `.github/workflows/live-check.yml` and this task entry. Existing integration owner retains site scope.
+- Board conflict with PR #4: retained both the integration handoff and the independent smoke-check claim.
+- Board conflict during integration: preserved both session logs and merged the updated main history without rewriting the published claim.
