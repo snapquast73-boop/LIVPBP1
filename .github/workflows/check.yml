@@ -1,0 +1,15 @@
+name: Check scoreboard
+on: pull_request
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --check assets/app.js && python3 tests/check.py
+      - name: Check official historical MLB responses
+        run: |
+          curl -fsS --retry 3 'https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=linescore' > /tmp/schedule
+          game=$(jq -er '.dates[0].games[0].gamePk' /tmp/schedule)
+          curl -fsS --retry 3 "https://statsapi.mlb.com/api/v1.1/game/$game/feed/live" | jq -e '.gameData.teams.home.name and .liveData.boxscore.teams.home.players and (.liveData.plays.allPlays|length>0)'

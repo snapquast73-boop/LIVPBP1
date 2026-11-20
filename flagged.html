@@ -1,55 +1,38 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Flagged for Review — MLB Live PBP</title>
-  <link rel="stylesheet" href="assets/css/style.css">
-</head>
-<body>
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-ball">⚾</span>
-      <span>MLB Live PBP</span>
-      <span class="brand-sub">flagged for review</span>
-    </div>
-    <a class="btn btn-ghost" href="index.html">← Scoreboard</a>
-    <a class="btn btn-feed" href="reviews.html">🚨 Replay Feed</a>
-  </header>
-
-  <main class="game-main">
-    <section class="panel">
-      <h1 style="margin-top:0;">Flagged for Review</h1>
-      <p style="color:var(--muted);">
-        Items below were flagged during repository verification and restoration.
-      </p>
-      <div class="table-scroll">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Status</th>
-              <th>Details</th>
-              <th>Official Source</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Missing <code>assets/</code> directory</td>
-              <td><span class="review-badge review-overturned">Restored</span></td>
-              <td>Original upload omitted <code>assets/css/style.css</code> and <code>assets/js/*.js</code>; restored to match HTML entrypoints.</td>
-              <td><a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1" target="_blank" rel="noopener">MLB StatsAPI</a></td>
-            </tr>
-            <tr>
-              <td>GitHub Pages deployment</td>
-              <td><span class="review-badge review-overturned">Verified</span></td>
-              <td>Served from <code>main</code> branch at <code>/</code>.</td>
-              <td><a href="https://snapquast73-boop.github.io/LIVPBP1/" target="_blank" rel="noopener">GitHub Pages</a></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Flagged for Review · MLB Live PBP</title
+  ><link rel="stylesheet" href="assets/style.css" />
+  <main>
+    <a href="index.html">← Scoreboard</a>
+    <h1>Flagged for Review</h1>
+    <h2>Original client missing</h2>
+    <p>
+      The
+      <a
+        href="https://github.com/snapquast73-boop/LIVPBP1/tree/dad37b4cf86c008e68320bc027d3a51001f4d710"
+        >uploaded snapshot</a
+      >
+      references scripts and a stylesheet that were not included. The repository
+      named by the original README was not publicly retrievable during
+      restoration. The replacement client is not a verified copy.
+    </p>
+    <h2>Replay feed and projections</h2>
+    <p>
+      The feed lists official descriptions containing “review” or “challenge”;
+      it is not a classification of rulings. Historical score changes, alerts,
+      synchronized logs, challenge counters, forecasts, advanced filters and
+      original refresh timing are not reproduced. Consult
+      <a href="https://www.mlb.com/scores">MLB scores and Gameday</a> for
+      official results.
+    </p>
+    <h2>Missing values</h2>
+    <p>
+      Blank fields mean unverified or not reported by MLB. An unavailable feed
+      is not evidence that no review occurred. Each displayed data row links to
+      its MLB response; these live responses may change after display.
+    </p>
   </main>
-</body>
 </html>
