@@ -28,6 +28,19 @@
       <a href="https://www.mlb.com/scores">MLB scores and Gameday</a> for
       official results.
     </p>
+    <h2>Verification scope</h2>
+    <p>
+      The active client is assets/app.js; the alternate assets/js files are not
+      loaded. The original upstream repository
+      (<a href="https://github.com/buffedlizard55-lab/MLB-Live-PBP">MLB-Live-PBP</a>)
+      returned HTTP 404 through GitHub's API during this audit. That does not
+      establish whether it is private, renamed, or deleted. Exact visual and
+      functional parity remains unverified. Regression tests use synthetic data;
+      the separate CI integration check reads the official
+      <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2024-10-30&amp;hydrate=linescore">historical schedule</a>
+      and its linked live feed. Passing that test does not certify every future
+      live response or establish permission for public reuse of MLB data.
+    </p>
     <h2>Missing values</h2>
     <p>
       Blank fields mean unverified or not reported by MLB. An unavailable feed

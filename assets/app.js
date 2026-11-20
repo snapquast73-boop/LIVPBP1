@@ -9,6 +9,8 @@ const localDate = (d) =>
   ].join("-");
 let date = localDate(new Date()),
   revision = 0,
+  controller,
+  pollTimer,
   displayedDate;
 const requested = new URLSearchParams(location.search).get("date");
 if (/^\d{4}-\d{2}-\d{2}$/.test(requested ?? "") &&
@@ -38,10 +40,20 @@ function row(parent, label, url, game) {
   link(card, "MLB source", url);
   parent.append(card);
 }
-async function get(url) {
-  const r = await fetch(url);
-  if (!r.ok) throw Error("MLB HTTP " + r.status);
-  return r.json();
+async function get(url, signal) {
+  const request = new AbortController();
+  const abort = () => request.abort();
+  signal.addEventListener("abort", abort, { once: true });
+  if (signal.aborted) request.abort();
+  const timeout = setTimeout(abort, 15000);
+  try {
+    const r = await fetch(url, { signal: request.signal });
+    if (!r.ok) throw Error("MLB HTTP " + r.status);
+    return await r.json();
+  } finally {
+    clearTimeout(timeout);
+    signal.removeEventListener("abort", abort);
+  }
 }
 const feed = (id) => `${mlb}/api/v1.1/game/${id}/feed/live`;
 const plays = (data) => data.liveData?.plays?.allPlays ?? [];
@@ -57,6 +69,10 @@ function lines(id, rows, url) {
   if (!rows.length) p.textContent = "No entries reported.";
 }
 async function refresh() {
+  clearTimeout(pollTimer);
+  controller?.abort();
+  controller = new AbortController();
+  const signal = controller.signal;
   const v = ++revision;
   text("banner", "Loading MLB data…");
   try {
@@ -70,7 +86,7 @@ async function refresh() {
       el("date-picker").value = date;
       text("date-label", date);
       const url = `${mlb}/api/v1/schedule?sportId=1&date=${date}&hydrate=linescore`;
-      const data = await get(url);
+      const data = await get(url, signal);
       if (v !== revision) return;
       if (!Array.isArray(data.dates) || data.dates.some(d => d.date !== date || !Array.isArray(d.games)))
         throw Error("Schedule date or game list unverified.");
@@ -95,7 +111,7 @@ async function refresh() {
           );
         else if (g.gamePk) {
           try {
-            const d = await get(feed(g.gamePk));
+            const d = await get(feed(g.gamePk), signal);
             if (v !== revision) return;
             if (!Array.isArray(d.liveData?.plays?.allPlays)) { failed++; continue; }
             for (const p of plays(d).slice().reverse())
@@ -128,7 +144,7 @@ async function refresh() {
       if (!/^\d+$/.test(id ?? ""))
         throw Error("Choose a game from the scoreboard.");
       const url = feed(id),
-        d = await get(url);
+        d = await get(url, signal);
       if (v !== revision) return;
       const live = d.liveData ?? {},
         game = d.gameData ?? {},
@@ -140,9 +156,9 @@ async function refresh() {
             .filter((x) => x != null)
             .join(" "),
         );
-      el("header-meta").replaceChildren();
-      link(el("header-meta"), "MLB game source", url);
       text("header-center", game.status?.detailedState);
+      el("header-meta").replaceChildren();
+      link(el("header-meta"), "MLB source for game status and current play", url);
       text("live-panel", live.plays?.currentPlay?.result?.description);
       lines(
         "plays-wrap",
@@ -190,6 +206,9 @@ async function refresh() {
         "Displayed data, if any, is from the last successful request.",
       );
     }
+  } finally {
+    // Manual refreshes reset polling; an obsolete request must not add a timer.
+    if (v === revision) pollTimer = setTimeout(refresh, 30000);
   }
 }
 function shift(n) {
@@ -225,8 +244,4 @@ for (const id of ["notify-toggle-btn", "sound-toggle-btn"])
     el(id).disabled = true;
     el(id).title = "Unavailable; see Flagged for Review.";
   }
-async function poll() {
-  await refresh();
-  setTimeout(poll, 30000);
-}
-poll();
+refresh();
