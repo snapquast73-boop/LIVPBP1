@@ -1,27 +1,76 @@
-name: Check scoreboard
-on: pull_request
+name: Check site
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Upstream contract drift shows up here even with no open pull request.
+    - cron: '17 3 * * *'
+
 permissions:
   contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci --ignore-scripts
-      - run: node --check assets/app.js && npm test
-      - name: Render official MLB data through the active client
-        run: OFFICIAL_MLB_CHECK=1 node --test tests/app.test.cjs
-      - name: Check official historical MLB responses
+
+      - name: Install test dependency (jsdom is used by tests only)
+        run: npm ci --ignore-scripts
+
+      - name: JavaScript syntax
         run: |
-          curl -fsS --retry 3 'https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=linescore' > /tmp/schedule
-          game=$(jq -er '.dates[0].games[0].gamePk' /tmp/schedule)
-          curl -fsS --retry 3 "https://statsapi.mlb.com/api/v1.1/game/$game/feed/live" | jq -e '.gameData.teams.home.name and .liveData.boxscore.teams.home.players and (.liveData.plays.allPlays|length>0)'
-      - name: Exercise published-client rendering against MLB
+          set -euo pipefail
+          for file in assets/js/*.js server.mjs tools/*.mjs tools/lib/*.mjs tests/*.mjs; do
+            node --check "$file"
+          done
+
+      - name: Deterministic suites (no network)
+        run: npm run -s test:unit
+
+      - name: Local link and asset check
         run: |
-          python3 -m http.server 8000 >/tmp/site.log 2>&1 &
-          google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=8000 --dump-dom 'http://localhost:8000/index.html?date=2024-10-30' >/tmp/rendered
-          python3 tests/verify_schedule.py /tmp/schedule /tmp/rendered
+          set -euo pipefail
+          python3 tests/check.py
+          node tools/link-check.mjs
+
+      - name: Published pages against official MLB responses
+        run: |
+          set -euo pipefail
+          # Render the real hosted lifecycle: serve the repository root the way
+          # GitHub Pages serves it, then drive the pages in a real browser so
+          # the check is not jsdom-only.
+          python3 -m http.server 8000 > "$RUNNER_TEMP/site.log" 2>&1 &
+          curl -fsS --retry 5 --retry-connrefused http://127.0.0.1:8000/index.html > /dev/null
+          google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=15000 \
+            --dump-dom 'http://127.0.0.1:8000/index.html?date=2024-10-30' > "$RUNNER_TEMP/scoreboard.html"
+          grep -q 'gamePk=775296' "$RUNNER_TEMP/scoreboard.html"
+          grep -q 'Yankee Stadium' "$RUNNER_TEMP/scoreboard.html"
+          google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=20000 \
+            --dump-dom 'http://127.0.0.1:8000/reviews.html?date=2026-06-01' > "$RUNNER_TEMP/feed.html"
+          grep -q 'MLB' "$RUNNER_TEMP/feed.html"
+          echo "Real-browser render of the served pages passed."
+
+      - name: Every rendered value against the official MLB payload
+        run: npm run -s test:pages
+
+      - name: Report the official endpoints the run compared against
+        if: always()
+        run: |
+          {
+            echo "### Official sources compared against"
+            echo "- https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore,decisions,review"
+            echo "- https://statsapi.mlb.com/api/v1.1/game/775296/feed/live"
+            echo "- https://statsapi.mlb.com/api/v1/gameStatus"
+            echo "- https://statsapi.mlb.com/api/v1/eventTypes"
+          } >> "$GITHUB_STEP_SUMMARY"
