@@ -12,7 +12,7 @@ MLB publishes those rulings in its own log at
 "changes can be made by the Official Scorer, Elias Sports Bureau, or following a
 review initiated by a player or club". That page is a human-readable log, **not**
 an API endpoint, and the StatsAPI game payload carries **no** scoring-change
-marker (verified 2026-11-20; see `docs/verification-report.md` §5).
+marker (verified 2026-11-22; see [verification report](verification-report.md) §7).
 
 ## How the app detects one
 

@@ -90,8 +90,12 @@ async function render(pageFile, query, until) {
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'livpbp1-selftest-'));
 fs.mkdirSync(path.join(tmp, 'feeds'));
-fs.writeFileSync(path.join(tmp, 'feeds', '824027.json'), JSON.stringify(feedFor(824027)));
-fs.writeFileSync(path.join(tmp, 'feeds', '822974.json'), JSON.stringify(feedFor(822974)));
+// The acceptance workflows download every scheduled game's feed; mirror that.
+for (const day of schedule.dates ?? []) {
+  for (const game of day.games ?? []) {
+    fs.writeFileSync(path.join(tmp, 'feeds', `${game.gamePk}.json`), JSON.stringify(feedFor(game.gamePk)));
+  }
+}
 
 const dumps = {
   index: await render('index.html', '?date=2026-06-01', (d) => d.querySelectorAll('#game-list .game-card').length === 3),
@@ -102,7 +106,7 @@ for (const [name, html] of Object.entries(dumps)) fs.writeFileSync(path.join(tmp
 
 const steps = [
   ['verify_schedule.py (scoreboard cards vs schedule)',
-    'python3', [path.join(ROOT, 'tests', 'verify_schedule.py'), path.join(FIX, 'schedule-2026-06-01.json'), path.join(tmp, 'index.html')]],
+    'python3', [path.join(ROOT, 'tests', 'verify_schedule.py'), path.join(FIX, 'schedule-2026-06-01.json'), path.join(tmp, 'index.html'), '2026-06-01']],
   ['verify-game.mjs (game rows vs feed)',
     'node', [path.join(ROOT, 'tests', 'verify-game.mjs'), path.join(FIX, 'feed-824027.json'), path.join(tmp, 'game.html'), '824027']],
   ['verify-reviews.mjs (replay feed vs feeds)',

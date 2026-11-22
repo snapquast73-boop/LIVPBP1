@@ -2,7 +2,7 @@
 # deterministic checks on every push and once a night.
 #
 # The checks never touch the network: they run against the synthetic fixtures in
-# tools/fixtures/, which mirror the StatsAPI shapes verified on 2026-11-20
+# tools/fixtures/, which mirror the StatsAPI shapes verified on 2026-11-22
 # (see docs/verification-report.md). The nightly job also re-checks that the live
 # API still answers the two endpoints the parsers depend on most.
 name: Checks
@@ -25,6 +25,7 @@ jobs:
       - run: node tools/review-test.mjs
       - run: node tools/hit-model-test.mjs
       - run: node tools/reviews-feed-test.mjs
+      - run: node tools/feed-fields-test.mjs
       - run: node tools/page-render-test.mjs
       - run: node tools/link-check.mjs
 

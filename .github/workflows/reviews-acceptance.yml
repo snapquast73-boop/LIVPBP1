@@ -17,13 +17,13 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts
-      - name: Verify Replay Feed rows, filter tabs, and challenge counters against MLB
+      - name: Verify Replay Feed rows, summary boxes and official challenge counters against MLB
         env:
           EVENT: ${{ github.event_name }}
         run: |
           set -euo pipefail
           date='2024-10-30'
-          schedule="https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}&hydrate=linescore"
+          schedule="https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}&hydrate=team,linescore,review"
           curl -fsS --retry 3 "$schedule" -o "$RUNNER_TEMP/schedule.json"
           mkdir -p "$RUNNER_TEMP/feeds"
           for pk in $(jq -er '.dates[].games[].gamePk | numbers' "$RUNNER_TEMP/schedule.json"); do
@@ -33,9 +33,13 @@ jobs:
           if [[ "$EVENT" == pull_request ]]; then
             base=http://127.0.0.1:8000/
             python3 -m http.server 8000 --bind 127.0.0.1 > "$RUNNER_TEMP/server.log" 2>&1 &
-            curl -fsS --retry 5 --retry-connrefused "${base}reviews.html" >/dev/null
+            for _ in $(seq 1 30); do
+              curl -fsS "${base}reviews.html" >/dev/null 2>&1 && break
+              sleep 1
+            done
+            curl -fsS "${base}reviews.html" >/dev/null
           fi
           page="${base}reviews.html?date=${date}"
-          google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=8000 --dump-dom "$page" > "$RUNNER_TEMP/reviews.html"
+          google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=12000 --dump-dom "$page" > "$RUNNER_TEMP/reviews.html"
           node tests/verify-reviews.mjs "$date" "$RUNNER_TEMP/schedule.json" "$RUNNER_TEMP/feeds" "$RUNNER_TEMP/reviews.html"
           echo "Verified Replay Feed for ${date} against [MLB schedule]($schedule) and linked live feeds." >> "$GITHUB_STEP_SUMMARY"
