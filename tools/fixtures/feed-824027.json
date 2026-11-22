@@ -1,5 +1,5 @@
 {
-  "_note": "SYNTHETIC fixture, shaped exactly like GET /api/v1.1/game/{gamePk}/feed/live as verified on 2026-11-20 (docs/verification-report.md §3–§5). Values are trimmed copies; the reviewDetails / runners / boxscore nesting is what the parsers are tested against.",
+  "_note": "SYNTHETIC fixture, shaped exactly like GET /api/v1.1/game/{gamePk}/feed/live as verified on 2026-11-22 (docs/verification-report.md §3–§6). Values are trimmed copies; the reviewDetails / runners / boxscore nesting is what the parsers are tested against.",
   "gamePk": 824027,
   "gameData": {
     "game": {

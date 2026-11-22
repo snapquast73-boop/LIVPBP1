@@ -2,14 +2,14 @@
 
 ## The terms the data comes with
 
-Every StatsAPI response carries this notice verbatim (verified 2026-11-20 on
+Every StatsAPI response carries this notice verbatim (verified 2026-11-22 on
 `GET https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2026-06-01`):
 
 > "Copyright 2026 MLB Advanced Media, L.P. Use of any content on this page
 > acknowledges agreement to the terms posted here
 > <http://gdx.mlb.com/components/copyright.txt>"
 
-The linked notice (verified 2026-11-20) reads:
+The linked notice (verified 2026-11-22) reads:
 
 > "The accounts, descriptions, data and presentation in the referring page (the
 > "Materials") are proprietary content of MLB Advanced Media, L.P ("MLBAM").
@@ -18,7 +18,7 @@ The linked notice (verified 2026-11-20) reads:
 > from MLBAM."
 
 MLB.com's Terms of Use (<https://www.mlb.com/official-information/terms-of-use>,
-verified 2026-11-20) add, in §1:
+verified 2026-11-22) add, in §1:
 
 > "Except for downloading one copy of the MLB Digital Properties on any single
 > device for your personal, non-commercial home use, you must not reproduce,
@@ -32,7 +32,8 @@ non-commercial, non-bulk* data source, which is the use the notice permits.
 
 **Flagged for review:** whether a *public* deployment of this app is permitted at
 all is an open question that this code cannot answer. It is listed on
-`flagged.html` so a human can decide.
+[Flagged for Review](../flagged.html) so a human can decide. The mitigating facts
+are recorded there too: no ads, no analytics, no resale, no proxying, no keys.
 
 ## Request budget enforced by the code
 
