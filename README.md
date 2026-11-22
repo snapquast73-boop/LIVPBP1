@@ -14,7 +14,7 @@ Node server are required.
 The original upload to this repository was **incomplete**: it contained the HTML
 pages, `server.mjs` and documentation, but **none of the `assets/js/*.js` modules
 or `assets/css/style.css` that the pages load**. Earlier restoration attempts
-wrote a small replacement client (`assets/app.js`) so the site would render at
+wrote a small replacement client (assets/app.js) so the site would render at
 all, which is why this deployment looked reduced compared with the working copies
 of the same project.
 

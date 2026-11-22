@@ -585,6 +585,8 @@
       (challengeBits.length ? '<div class="muted small">' + challengeBits.join(' · ') + '</div>' : '') +
       scoreTracker(entry) +
       (entry.counterLine ? '<div class="muted small">' + UI.esc(entry.counterLine) + '</div>' : '') +
+      '<div class="muted small"><a href="' + UI.esc(feedUrl()) +
+        '" target="_blank" rel="noopener">MLB source</a></div>' +
       '</div>';
   }
 

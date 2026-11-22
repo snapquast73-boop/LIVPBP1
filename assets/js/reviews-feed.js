@@ -138,6 +138,11 @@
     if (el) el.textContent = text;
   }
 
+  /** The official StatsAPI feed URL every rendered row is sourced from. */
+  function sourceHref(gamePk) {
+    return MLBAPI.BASE_V11 + '/game/' + encodeURIComponent(gamePk) + '/feed/live';
+  }
+
   /* -------------------------------------------------------------- controls */
 
   function bindControls() {
@@ -501,6 +506,8 @@
           UI.esc(UI.inningLabel(e.inning, e.halfInning)) + ' · ' + UI.esc(e.label) +
           (e.countersSummary ? ' <span class="muted">(' + UI.esc(e.countersSummary) + ')</span>' : '') +
           ' · <a href="game.html?gamePk=' + encodeURIComponent(e.gamePk) + '">Open game →</a>' +
+          (e.gamePk ? ' · <a href="' + UI.esc(sourceHref(e.gamePk)) +
+            '" target="_blank" rel="noopener">MLB source</a>' : '') +
         '</div>';
       }).join('') + '</div>';
   }
@@ -604,7 +611,9 @@
       (e.countersSummary ? '<div class="muted small">' + UI.esc(e.countersSummary) + '</div>' : '') +
       (e.note ? '<div class="muted small">' + UI.esc(e.note) + '</div>' : '') +
       (e.gamePk ? '<div class="muted small"><a href="game.html?gamePk=' +
-        encodeURIComponent(e.gamePk) + '">Open Game →</a></div>' : '') +
+        encodeURIComponent(e.gamePk) + '">Open Game →</a>' +
+        ' · <a href="' + UI.esc(sourceHref(e.gamePk)) +
+        '" target="_blank" rel="noopener">MLB source</a></div>' : '') +
     '</article>';
   }
 
