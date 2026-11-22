@@ -507,7 +507,7 @@
           (e.countersSummary ? ' <span class="muted">(' + UI.esc(e.countersSummary) + ')</span>' : '') +
           ' · <a href="game.html?gamePk=' + encodeURIComponent(e.gamePk) + '">Open game →</a>' +
           (e.gamePk ? ' · <a href="' + UI.esc(sourceHref(e.gamePk)) +
-            '" target="_blank" rel="noopener">MLB source</a>' : '') +
+            '" target="_blank" rel="noopener">MLB feed</a>' : '') +
         '</div>';
       }).join('') + '</div>';
   }
@@ -613,7 +613,7 @@
       (e.gamePk ? '<div class="muted small"><a href="game.html?gamePk=' +
         encodeURIComponent(e.gamePk) + '">Open Game →</a>' +
         ' · <a href="' + UI.esc(sourceHref(e.gamePk)) +
-        '" target="_blank" rel="noopener">MLB source</a></div>' : '') +
+        '" target="_blank" rel="noopener">MLB feed</a></div>' : '') +
     '</article>';
   }
 

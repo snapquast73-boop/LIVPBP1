@@ -193,7 +193,7 @@ for (const [i, card] of reviewCards.entries()) {
   assert.equal(links[0].getAttribute('href'), source,
     `review card ${i + 1}: source link must be the official feed`);
   assert.equal(links[0].getAttribute('target'), '_blank', `review card ${i + 1}: source link opens in a new tab`);
-  assert.equal(links[0].textContent.trim(), 'MLB source', `review card ${i + 1}: source link label`);
+  assert.equal(links[0].textContent.trim(), 'MLB feed', `review card ${i + 1}: source link label`);
 }
 for (const rec of officialReviewRecords) {
   const text = (rec.play.result?.description || rec.rd.reason || '').trim();

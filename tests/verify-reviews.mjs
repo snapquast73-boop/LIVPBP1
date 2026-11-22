@@ -230,17 +230,17 @@ for (const card of feedCards) {
   assert.ok(gameLink, 'every Replay Feed row must link to its game page');
   const pk = Number(gameLink.getAttribute('href').match(/gamePk=(\d+)/)[1]);
   assert.ok(snapshots.has(pk), `row links to gamePk ${pk}, which is not on the official ${date} schedule`);
+  // The row's values come from that game's official feed, so the row must link
+  // it directly: every displayed row carries a source link to an official site.
+  const sourceLink = links.find((a) => a.getAttribute('href') === feedUrl(pk));
+  assert.ok(sourceLink, `every Replay Feed row for gamePk ${pk} must link to its official MLB feed (${feedUrl(pk)})`);
+  assert.equal(sourceLink.getAttribute('target'), '_blank', 'source link opens in a new tab');
+  assert.equal(sourceLink.textContent.trim(), 'MLB feed', 'source link is labelled');
   assert.equal(
     card.querySelector('strong').textContent.trim(),
     `${snapshots.get(pk).abbr.away} @ ${snapshots.get(pk).abbr.home}`,
     `row for gamePk ${pk} must name that game's official home and away teams`
   );
-  // The row's values come from that game's official feed, so the row must link
-  // it directly: every displayed row carries a source link to an official site.
-  const sourceLink = links.find((a) => a.getAttribute('href') === feedUrl(pk));
-  assert.ok(sourceLink, `row for gamePk ${pk} must link the official MLB feed (${feedUrl(pk)})`);
-  assert.equal(sourceLink.getAttribute('target'), '_blank', 'source link opens in a new tab');
-  assert.equal(sourceLink.textContent.trim(), 'MLB source', 'source link is labelled');
 }
 
 // The "Under review now" strip renders the same rows more compactly; when it

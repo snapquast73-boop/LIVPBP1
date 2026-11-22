@@ -1,5 +1,5 @@
 {
-  "_note": "SYNTHETIC fixture. Every field name and nesting level mirrors the live StatsAPI responses verified on 2026-11-22 (see docs/verification-report.md §3); the values are trimmed copies of those responses, not a new live request.",
+  "_note": "SYNTHETIC fixture. Every field name and nesting level mirrors the live StatsAPI responses verified on 2026-11-20 (see docs/verification-report.md §2); the values are trimmed copies of those responses, not a new live request.",
   "dates": [
     {
       "date": "2026-06-01",

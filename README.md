@@ -1,200 +1,98 @@
 # ⚾ MLB Live PBP — Live MLB Scoreboard & Play-by-Play
 
-[Open the scoreboard](https://snapquast73-boop.github.io/LIVPBP1/) ·
+[Open the Scoreboard](https://snapquast73-boop.github.io/LIVPBP1/) ·
 [Replay Feed](https://snapquast73-boop.github.io/LIVPBP1/reviews.html) ·
-[Flagged for Review](https://snapquast73-boop.github.io/LIVPBP1/flagged.html)
+[Flagged for Review](https://snapquast73-boop.github.io/LIVPBP1/flagged.html) ·
+[Source Provenance](SOURCE-PROVENANCE.md) ·
+[Verification Report](docs/verification-report.md)
 
-A zero-dependency static web app that pulls **live MLB data** straight from the
-public MLB StatsAPI and renders it Gameday-style. GitHub Pages serves the HTML,
-CSS and JavaScript from the root of `main`. No installation, no API key and no
-Node server are required.
+A zero-dependency static web app that pulls **live MLB data** directly from the
+public [MLB StatsAPI](https://statsapi.mlb.com) and renders it Gameday-style.
+GitHub Pages serves the HTML, CSS, and JavaScript from the root of `main`
+(`https://snapquast73-boop.github.io/LIVPBP1/`). No installation, no API key,
+and no Node server are required.
 
-## What happened to this repository, and how it was fixed
+---
 
-The original upload to this repository was **incomplete**: it contained the HTML
-pages, `server.mjs` and documentation, but **none of the `assets/js/*.js` modules
-or `assets/css/style.css` that the pages load**. Earlier restoration attempts
-wrote a small replacement client (assets/app.js) so the site would render at
-all, which is why this deployment looked reduced compared with the working copies
-of the same project.
+## What Happened in Upload — and How Functional Parity Was Restored
 
-The real module set has now been restored from
-**[snapquast73-boop/LIVPBP2](https://github.com/snapquast73-boop/LIVPBP2)** — a
-working copy of this same codebase. The evidence is structural, not a similarity
-judgement: `server.mjs` in this upload is byte-identical (Git blob
-`3daa71433da3d50cbba323ee31d0231eb9961c05`) to LIVPBP2's, and the uploaded
-`index.html`/`game.html`/`reviews.html` differ from LIVPBP2's only by the
-"Flagged for Review" footer link. The stopgap client was removed; its contents
-remain in git history. See [Flagged for Review](flagged.html) for the full audit,
-including what could and could not be verified, and
-[docs/verification-report.md](docs/verification-report.md) for the row-by-row
-source log.
+The initial upload commit ([`dad37b4`](https://github.com/snapquast73-boop/LIVPBP1/tree/dad37b4cf86c008e68320bc027d3a51001f4d710))
+included only the root HTML entry points (`index.html`, `game.html`, `reviews.html`,
+`404.html`), `server.mjs`, `README.md`, `LICENSE`, and `.gitignore` — **none of
+the eight `assets/js/*.js` modules, `assets/css/style.css`, `docs/`, or `tools/`
+referenced by those pages were uploaded**. Earlier sessions built a small stopgap
+client (`app.js`) so the site would render at all, which is why the page
+previously lacked features compared with the working reference sites.
 
-What is still **not** provable is byte-identity with the original author's
-private implementation — the upstream repository
-([`buffedlizard55-lab/MLB-Live-PBP`](https://github.com/buffedlizard55-lab/MLB-Live-PBP))
-returns HTTP 404. That limit is recorded, with its source link, on
-[Flagged for Review](flagged.html).
+All eight original client modules and stylesheet have been restored from the
+upload-identical sibling copy
+**[snapquast73-boop/LIVPBP2](https://github.com/snapquast73-boop/LIVPBP2)**
+(where all 8 uploaded root files share identical Git blob SHA-1 hashes with
+[`dad37b4`](https://github.com/snapquast73-boop/LIVPBP1/tree/dad37b4cf86c008e68320bc027d3a51001f4d710)),
+preserving concurrent reliability fixes (explicit stale/incomplete scan warnings)
+and adding direct per-row official source links. See
+[Source Provenance](SOURCE-PROVENANCE.md),
+[Verification Report](docs/verification-report.md), and
+[Flagged for Review](flagged.html) for the full line-by-line audit.
 
-## Pages
+---
 
-- **Scoreboard** (`index.html`) — every game for any date: live scores, inning,
-  count, outs, records, venue, W/L/S decisions and probable pitchers, as a card
-  per game, with a live "under review now" banner.
-- **Game view** (`game.html`) — who's at bat and who's pitching, count, outs and
-  runners, on-deck/in-the-hole hitters, pitch counts, last play,
-  inning-by-inning linescore, full box score, the complete play-by-play, a
-  two-sided hit forecast, and a Challenges & Reviews tab with the score tracker.
-- **Replay Feed** (`reviews.html`) — a chat-style feed of replay reviews,
-  manager/crew-chief/umpire challenges, boundary calls, ABS pitch challenges,
-  official-scorer-pending rulings and detected scoring changes across **every
-  game on the schedule**, with an Under Review strip, per-type filters
-  (All · ABS · Challenges · Reviews · Boundary Calls · Under Review · Runs at
-  Risk · Scoring Changes · Flagged), day summary stats, the official challenge
-  counters, and an optional run-at-risk alert.
-- **[Flagged for Review](flagged.html)** — every irregularity and every value
-  that could not be confirmed from an official source, each with the link that
-  was checked.
+## Pages & Features
 
-## Data sources
+- **Scoreboard (`index.html`)** — Every MLB game for any date (`←` / date picker / `→` / `Today`), filterable by **All**, **Live**, **Final**, **Scheduled**, and **🚨 In Review**, with team logos, W–L records, scores, inning & outs, venue, W/L/SV decisions, probable pitchers, scoring-change badges, and an active Under-Review banner.
+- **Game View (`game.html?gamePk=<id>`)** — Current batter vs. pitcher matchup, balls/strikes/outs indicator dots, live bases diamond, on-deck/in-the-hole batters, inning-by-inning linescore (`R / H / E / LOB`), newest-first **Play-by-Play** with review chips, full **Batting & Pitching Box Scores**, a transparent two-sided **Hit Forecast** (`assets/js/props.js`), and a **Challenges & Reviews** tab with Before / Possible-after / Actual-after score trackers and official counters. Every linescore row, box-score row, and review card links directly to its official `feed/live` response.
+- **Replay Feed (`reviews.html`)** — League-wide chat-style feed across **All** (non-ABS), **ABS**, **Challenges**, **Reviews**, **Boundary Calls**, **Under Review**, **Runs at Risk**, **✏️ Scoring Changes**, and **Flagged**, with an active Under-Review strip, summary stat bar, official manager & ABS challenge counters (never derived or zero-filled), Official Scorer Ruling Pending detection (`os_ruling_pending_primary` / `os_ruling_pending_prior`), consecutive-poll scoring-change diffing, optional sound chime & desktop notifications, 7-day `localStorage` persistence, and direct links to each game and its official `feed/live` payload.
+- **Flagged for Review (`flagged.html`)** — Public audit log of every unverified item and upstream data irregularity, with blank cells where values cannot be confirmed from an official source and direct links to official endpoints.
 
-Data comes directly from the official [MLB StatsAPI](https://statsapi.mlb.com):
+---
 
-- [`GET /api/v1/schedule`](https://statsapi.mlb.com/api/v1/schedule?sportId=1)
-  with `hydrate=team,linescore,probablePitcher,decisions,review,flags` — the
-  slate, records, decisions, probable pitchers and manager-challenge counters;
-- `GET /api/v1.1/game/{gamePk}/feed/live` — the live game state, linescore, box
-  score, plays and structured review records for that game;
-- [`GET /api/v1/gameStatus`](https://statsapi.mlb.com/api/v1/gameStatus) and
-  [`GET /api/v1/eventTypes`](https://statsapi.mlb.com/api/v1/eventTypes) — the
-  official review-status and event-type registries used to classify records.
+## Architecture & Reference Docs
 
-Every displayed data row links to the MLB response it came from. A value MLB does
-not report is shown blank rather than as `0`, and blank always means "not
-reported", never "zero".
+| Module / Doc | Role | Official Source / Reference |
+| --- | --- | --- |
+| `assets/js/api.js` | Browser client for `statsapi.mlb.com` (`/api/v1/schedule`, `/api/v1.1/game/{gamePk}/feed/live`, `/api/v1/gameStatus`, `/api/v1/people/{id}/stats`) with 12 s timeout and cache-busting | [MLB Schedule API (`2024-10-30`)](https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore,probablePitcher,decisions,review,flags) |
+| `assets/js/reviews.js` | Structured `reviewDetails` & `playEvents[].reviewDetails` parser, `/api/v1/gameStatus` code lookup (`IH`, `M*`, `N*`, `MJ`, `NJ`), event-bound `runsAtRisk`, official counter formatter, and consecutive-poll scoring-change / irregularity detector | [MLB `gameStatus` Registry](https://statsapi.mlb.com/api/v1/gameStatus) · [MLB `eventTypes` Registry](https://statsapi.mlb.com/api/v1/eventTypes) |
+| `assets/js/props.js` | Transparent log5 per-PA and remaining-game hit model anchored to `.245` league AVG using season, platoon (`vl`/`vr`), 14-day `gameLog`, and count adjustments | [MLB People Stats API (`660271`)](https://statsapi.mlb.com/api/v1/people/660271/stats?stats=season,statSplits,gameLog&group=hitting&sitCodes=vl,vr&season=2026) |
+| `assets/js/scoreboard.js`, `game.js`, `reviews-feed.js`, `feed-log.js`, `ui.js` | Scoreboard, Game view, Replay Feed (`10 s` / `3 s` / `3–4 s` live polling; paused when hidden), 7-day `localStorage` log, and HTML-escaped UI helpers | [MLB Game Live Feed (`775296`)](https://statsapi.mlb.com/api/v1.1/game/775296/feed/live) |
+| [`SOURCE-PROVENANCE.md`](SOURCE-PROVENANCE.md) & [`docs/verification-report.md`](docs/verification-report.md) | Blob-level upload provenance (`LIVPBP1` vs `LIVPBP2` vs `POSTSSNALRT`) and line-by-line live StatsAPI field verification | [GitHub Tree API (`dad37b4`)](https://api.github.com/repos/snapquast73-boop/LIVPBP1/git/trees/dad37b4cf86c008e68320bc027d3a51001f4d710?recursive=1) |
+| [`docs/api-compliance.md`](docs/api-compliance.md) & [`docs/scoring-changes.md`](docs/scoring-changes.md) | Request-rate budget, MLBAM copyright/Terms disclosures, Official Scorer Ruling Pending codes, and scoring-change diffing rules | [MLB Official Scoring Changes](https://www.mlb.com/official-information/scoring-changes) · [MLB.com Terms of Use](https://www.mlb.com/official-information/terms-of-use) |
+| [`docs/workflows/pages.yml`](docs/workflows/pages.yml) & [`docs/workflows/smoke.yml`](docs/workflows/smoke.yml) | Reference GitHub Actions Pages & smoke workflow templates (site currently deploys directly from `main` `/`) | [GitHub Pages Config API (`LIVPBP1`)](https://api.github.com/repos/snapquast73-boop/LIVPBP1/pages) |
+
+---
 
 ## Verification
 
 ```bash
-npm ci --ignore-scripts
-npm test              # syntax + deterministic suites + link checks (offline)
-npm run test:pages    # official-payload page test (needs network; runs in CI)
-npm run test:links    # markdown + HTML link checks only
+npm ci --ignore-scripts && npm test
 ```
 
-`npm test` runs with no network access:
+`npm test` runs offline with zero network dependencies:
 
-- `node --check` on all eight modules, `server.mjs`, and every file under
-  `tools/` and `tests/`;
-- the client's own 48-check suite — `tools/page-render-test.mjs` (renders each
-  page in jsdom, 0 failures), `tools/review-test.mjs`,
-  `tools/reviews-feed-test.mjs`, `tools/feed-fields-test.mjs` and
-  `tools/hit-model-test.mjs`;
-- `tools/link-check.mjs`, `tools/check-local-links.py` and `tests/check.py`,
-  which fail if any local `href`/`src` in any page or Markdown doc points at a
-  missing file.
+- `node --check` syntax validation on all eight `assets/js/*.js` modules, `server.mjs`, and `tools/verify-table-sources.mjs`;
+- `tools/page-render-test.mjs` (7 jsdom page renders, 0 failures), `tools/review-test.mjs` (14 checks), `tools/reviews-feed-test.mjs` (6 checks), `tools/feed-fields-test.mjs` (9 checks), and `tools/hit-model-test.mjs` (12 checks);
+- `tools/check-local-links.py`, `tools/link-check.mjs`, `tests/check.py`, and `tools/verify-table-sources.mjs`, which verify zero broken local links across all HTML and Markdown files and verify that every HTML/Markdown table row and rendered Replay Feed row carries a direct official source link.
 
-Synthetic fixtures are **not** evidence of real game results. The claims about
-actual MLB data are checked in CI against freshly downloaded official responses:
+Real-browser and live-API checks (`npm run test:pages`, `node tests/live-e2e.mjs`, and browser verifiers) run in GitHub Actions against freshly downloaded official MLB responses and the deployed GitHub Pages site:
 
-| Check | Workflow | Compares |
-| --- | --- | --- |
-| Scoreboard | `check.yml` | every game card (teams, records, scores, status, venue) against the [official schedule](https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore,review) |
-| Official-payload page test | `check.yml` (`npm run test:pages`) | every rendered value of all three pages against the official schedule, `feed/live`, `gameStatus` and `eventTypes` responses fetched in the same run — no hand-typed expected values |
-| Game view | `game-acceptance.yml` | header, every linescore cell, every batting/pitching row (each with its source link) and every play description against that game's `feed/live` |
-| Replay Feed | `reviews-acceptance.yml` | scan coverage, team abbreviations, summary boxes and every official challenge counter against the [official schedule](https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=linescore) and each linked feed |
-| API shape | `feed-shape.yml` | the archived 2024-10-30 game's schedule, counters, feed contract and `eventTypes` registry |
-| Deployed files | `live-check.yml` | every published page and module is actually served and parses; after each deployment the deployed site is also driven end to end in a real browser against the live API (`tests/live-e2e.mjs`) |
+| Check | Workflow | Compares | Official Source |
+| --- | --- | --- | --- |
+| Scoreboard | `.github/workflows/check.yml` | Every game card (teams, W–L records, scores, status pill, venue) in headless Chrome against the official schedule | [MLB Schedule (`2024-10-30`)](https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore,review) |
+| Official-payload page test | `.github/workflows/check.yml` (`npm run test:pages`) | Every rendered value of all three pages against the official schedule, `feed/live`, `gameStatus` and `eventTypes` responses fetched in the same run — no hand-typed expected values | [MLB Schedule (`2024-10-30`)](https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore,decisions,review) · [MLB Live Feed (`775296`)](https://statsapi.mlb.com/api/v1.1/game/775296/feed/live) · [MLB `gameStatus`](https://statsapi.mlb.com/api/v1/gameStatus) · [MLB `eventTypes`](https://statsapi.mlb.com/api/v1/eventTypes) |
+| Game view | `.github/workflows/game-acceptance.yml` | Header, every linescore cell, every batting/pitching row, per-row source links, and every play description against `feed/live` | [MLB Live Feed (`775296`)](https://statsapi.mlb.com/api/v1.1/game/775296/feed/live) |
+| Replay Feed | `.github/workflows/reviews-acceptance.yml` | Scan coverage, official team abbreviations, summary boxes, official challenge counters, and per-row game + feed links | [MLB Schedule (`2024-10-30`)](https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore,review) · [MLB Live Feed (`775296`)](https://statsapi.mlb.com/api/v1.1/game/775296/feed/live) |
+| API shape | `.github/workflows/feed-shape.yml` | Schedule, counters, live feed contract, and `os_ruling_pending_*` codes in `/api/v1/eventTypes` | [MLB `eventTypes` Registry](https://statsapi.mlb.com/api/v1/eventTypes) |
+| Deployed files | `.github/workflows/live-check.yml` | Every published HTML page, CSS stylesheet, and JS module returns HTTP 200 and parses cleanly; after each deployment the deployed site is also driven end to end in a real browser against the live API (`tests/live-e2e.mjs`) | [GitHub Pages Site (`LIVPBP1`)](https://snapquast73-boop.github.io/LIVPBP1/) · [GitHub Pages API](https://api.github.com/repos/snapquast73-boop/LIVPBP1/pages) |
 
-The official-payload page test (`tests/official-e2e.mjs`) does **not** contain a
-single hand-typed expected value. Every expectation is read out of the response
-it just fetched — scores, records, venue, decisions, every inning, every play
-description, every batter and pitcher line, every review record, ABS outcome and
-counter, and the replay feed's tab membership. If the site renders something MLB
-did not report, the test fails. CI runs it on every pull request, push to `main`
-and on a nightly schedule (`.github/workflows/check.yml`), so an upstream
-contract change shows up even with no open pull request.
+---
 
-These checks pin the archived sample responses and the deployed files. They do
-not certify future live data; see [Flagged for Review](flagged.html).
-
-## How values are handled
-
-- A value MLB did not report is rendered **blank**, never as `0`.
-- Challenge counters are quoted from `gameData.review.{away,home}` and
-  `gameData.absChallenges.{away,home}` — never derived by counting feed events,
-  never zero-filled. A counter is shown on a review row only for the side the
-  payload credits with the challenge.
-- Review classification uses MLB's own `/gameStatus` registry codes (`M*`, `N*`,
-  `MJ`/`NJ`, `IH`) rather than matching the words "challenge" or "review" in
-  text.
-- "Runs at risk" is a conditional lower bound taken from scoring movements the
-  payload attributes to the reviewed event. It is never a prediction of the
-  ruling or of runner placement.
-- Scoring changes are detected by diffing consecutive polls; the payload carries
-  no marker for them, so changes that happened while no page was open cannot be
-  reconstructed. MLB's own
-  [scoring changes log](https://www.mlb.com/official-information/scoring-changes)
-  is the authority.
-- A scan that fails or is incomplete labels its totals stale/partial instead of
-  presenting old numbers as current.
-
-## Layout
-
-```
-index.html · game.html · reviews.html · 404.html · flagged.html   # the site
-assets/css/style.css                                             # theme
-assets/js/api.js                                                 # MLB StatsAPI client (timeouts, 429 backoff)
-assets/js/ui.js                                                  # escaping, dates, logos, count, base diamond
-assets/js/reviews.js                                             # review/pending-ruling parser, counters, diffs
-assets/js/reviews-feed.js                                        # the all-games Replay Feed page
-assets/js/scoreboard.js                                          # the scoreboard page
-assets/js/game.js                                                # the game page
-assets/js/props.js                                               # two-sided hit forecast
-assets/js/feed-log.js                                            # browser-local feed log
-server.mjs                                                       # OPTIONAL local persistence server (not on Pages)
-tools/                                                           # deterministic, network-free test suites + fixtures
-tests/official-e2e.mjs                                           # official-payload page test (network)
-tests/live-e2e.mjs                                               # deployed-site browser test (network + Chrome)
-tests/verify_schedule.py · verify-game.mjs · verify-reviews.mjs   # row-by-row Chrome acceptance vs official JSON
-docs/api-compliance.md · docs/scoring-changes.md · docs/verification-report.md
-COORDINATION.md                                                  # shared task board
-```
-
-## Local development
+## Local Development
 
 ```bash
 python3 -m http.server 8000   # then open http://localhost:8000/
-node server.mjs               # optional: adds cross-browser persistence
 ```
 
-`server.mjs` is inherited from the original upload and is **not** used by GitHub
-Pages. It writes feed logs to a git-ignored `data/` directory. It is
-unauthenticated, so run it on localhost only — see the security note on
-[Flagged for Review](flagged.html).
-
-## Deploy
-
-Pages is configured to publish `main` from `/ (root)`, which needs no workflow.
-Every push to `main` republishes the site. See GitHub's documentation on
-[configuring a publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
-
-## Terms
-
-The MLB StatsAPI is unofficial, keyless and may change without notice; the
-client degrades gracefully when a field or endpoint disappears. It self-limits:
-pages pause while the tab is hidden and honour HTTP 429 with a quiet period.
-`docs/api-compliance.md` records the request budget and the governing terms.
-Team logos, headshots and all data are © MLB Advanced Media / MLB and their
-respective owners. This is an unofficial fan project, not affiliated with or
-endorsed by MLB.
+`server.mjs` is preserved from the original upload and is **never executed on GitHub Pages**. It exposes an unauthenticated local `POST /api/feed-log` endpoint writing to git-ignored `data/`; run it on `localhost` only (see [Flagged for Review](flagged.html)).
 
 ## Attribution
 
-Unofficial fan project. Data via the public MLB StatsAPI, the same feeds that
-power [MLB.com](https://www.mlb.com) Gameday. Not affiliated with MLB or MLB
-Advanced Media. Review descriptions belong to MLB.
-
-## License
-
-[MIT](LICENSE)
+Unofficial fan project. Data via the public [MLB StatsAPI](https://statsapi.mlb.com), the same feeds that power [MLB.com](https://www.mlb.com) Gameday. Not affiliated with MLB or MLB Advanced Media.

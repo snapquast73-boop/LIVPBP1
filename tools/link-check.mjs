@@ -12,8 +12,8 @@ import path from 'node:path';
 import { REPO_ROOT } from './lib/browser-env.mjs';
 
 const HTML_PAGES = ['index.html', 'game.html', 'reviews.html', '404.html', 'flagged.html'];
-const MD_FILES = ['README.md', 'COORDINATION.md', 'docs/verification-report.md',
-  'docs/scoring-changes.md', 'docs/api-compliance.md'];
+const MD_FILES = ['README.md', 'COORDINATION.md', 'SOURCE-PROVENANCE.md', 'tests/README.md',
+  'docs/verification-report.md', 'docs/scoring-changes.md', 'docs/api-compliance.md'];
 
 const missing = [];
 const proseOnly = [];
