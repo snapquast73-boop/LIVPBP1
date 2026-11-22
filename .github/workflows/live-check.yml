@@ -14,13 +14,15 @@ jobs:
         env:
           BASE: https://snapquast73-boop.github.io/LIVPBP1/
         run: |
-          for file in index.html game.html reviews.html flagged.html assets/app.js assets/style.css; do
+          assets='assets/js/api.js assets/js/ui.js assets/js/reviews.js assets/js/feed-log.js assets/js/reviews-feed.js assets/js/scoreboard.js assets/js/props.js assets/js/game.js'
+          for file in index.html game.html reviews.html flagged.html 404.html assets/css/style.css $assets; do
             curl --fail --silent --show-error --retry 3 "$BASE$file" -o "$RUNNER_TEMP/body"
             test -s "$RUNNER_TEMP/body"
             case "$file" in
-              *.js) cp "$RUNNER_TEMP/body" "$RUNNER_TEMP/app.js"; node --check "$RUNNER_TEMP/app.js" ;;
+              *.js) cp "$RUNNER_TEMP/body" "$RUNNER_TEMP/check.js"; node --check "$RUNNER_TEMP/check.js" ;;
               *.css) grep -q '{' "$RUNNER_TEMP/body" ;;
               flagged.html) grep -q '<h1>Flagged for Review</h1>' "$RUNNER_TEMP/body" ;;
-              *) grep -q 'src="assets/app.js"' "$RUNNER_TEMP/body" ;;
+              404.html) grep -q 'assets/css/style.css' "$RUNNER_TEMP/body" ;;
+              *) grep -q 'src="assets/js/api.js"' "$RUNNER_TEMP/body" ;;
             esac
           done

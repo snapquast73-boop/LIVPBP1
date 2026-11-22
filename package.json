@@ -1,6 +1,8 @@
 {
   "name": "mlb-live-pbp",
   "private": true,
-  "scripts": { "test": "node --test tests/app.test.cjs && python3 tests/check.py" },
+  "scripts": {
+    "test": "node tools/review-test.mjs && node tools/hit-model-test.mjs && node tools/reviews-feed-test.mjs && node tools/feed-fields-test.mjs && node tools/page-render-test.mjs && node tools/link-check.mjs && python3 tools/check-local-links.py && python3 tests/check.py && node tests/selftest-verify.mjs"
+  },
   "devDependencies": { "jsdom": "26.1.0" }
 }

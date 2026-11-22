@@ -12,9 +12,13 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: node --check assets/app.js && npm test
-      - name: Render official MLB data through the active client
-        run: OFFICIAL_MLB_CHECK=1 node --test tests/app.test.cjs
+      - name: JavaScript syntax (client, server, tools, tests)
+        run: |
+          for f in assets/js/*.js server.mjs tools/*.mjs tests/*.mjs; do
+            node --check "$f"
+          done
+      - name: Deterministic offline checks (parser, hit model, feed log, page renders, links, verifier self-test)
+        run: npm test
       - name: Check official historical MLB responses
         run: |
           curl -fsS --retry 3 'https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=linescore' > /tmp/schedule
