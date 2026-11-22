@@ -230,6 +230,8 @@ for (const card of feedCards) {
   assert.ok(gameLink, 'every Replay Feed row must link to its game page');
   const pk = Number(gameLink.getAttribute('href').match(/gamePk=(\d+)/)[1]);
   assert.ok(snapshots.has(pk), `row links to gamePk ${pk}, which is not on the official ${date} schedule`);
+  const sourceLink = links.find((a) => a.getAttribute('href') === feedUrl(pk));
+  assert.ok(sourceLink, `every Replay Feed row for gamePk ${pk} must link to its official MLB feed`);
   assert.equal(
     card.querySelector('strong').textContent.trim(),
     `${snapshots.get(pk).abbr.away} @ ${snapshots.get(pk).abbr.home}`,
