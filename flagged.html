@@ -4,187 +4,208 @@
     name="viewport"
     content="width=device-width,initial-scale=1"
   /><title>Flagged for Review · MLB Live PBP</title
-  ><link rel="stylesheet" href="assets/style.css" />
+  ><link rel="stylesheet" href="assets/css/style.css" />
   <main>
     <a href="index.html">← Scoreboard</a>
     <h1>Flagged for Review</h1>
-    <h2>Original client missing</h2>
+
+    <h2>How the site was restored (2026-11-22, session c0d0d08d)</h2>
     <p>
-      The
-      <a
-        href="https://github.com/snapquast73-boop/LIVPBP1/tree/dad37b4cf86c008e68320bc027d3a51001f4d710"
+      <strong>The original upload was incomplete.</strong> The
+      <a href="https://github.com/snapquast73-boop/LIVPBP1/tree/dad37b4cf86c008e68320bc027d3a51001f4d710"
         >uploaded snapshot</a
       >
-      references scripts and a stylesheet that were not included. The repository
-      named by the original README was not publicly retrievable during
-      restoration. The replacement client is not a verified copy.
+      (<code>dad37b4</code>, “Add files via upload”) contains only nine files:
+      <code>index.html</code>, <code>game.html</code>, <code>reviews.html</code>,
+      <code>404.html</code>, <code>server.mjs</code>, <code>README.md</code>,
+      <code>LICENSE</code>, <code>.gitignore</code> and that 404 page. Every
+      module the pages load — <code>assets/js/api.js</code>,
+      <code>ui.js</code>, <code>reviews.js</code>, <code>feed-log.js</code>,
+      <code>scoreboard.js</code>, <code>props.js</code>, <code>game.js</code>,
+      <code>reviews-feed.js</code> — and <code>assets/css/style.css</code> were
+      <strong>never uploaded</strong>. That is why earlier restoration attempts
+      rendered a reduced app: they wrote a small replacement client
+      (<code>assets/app.js</code>) because the real one was absent.
     </p>
-    <h2>Replay feed and projections</h2>
     <p>
-      Replay entries use MLB’s structured review fields. Other than the ABS code
-      checked below, review codes are shown as reported rather than assigned a
-      more specific label. Missing outcomes, descriptions or counter values
-      stay blank and are flagged. Runs at risk, historical scoring changes,
-      browser and synchronized logs, alerts, and forecasts are not reproduced.
-      Consult
-      <a href="https://www.mlb.com/scores">MLB scores and Gameday</a> for
-      official results.
+      This session restored the real module set from the working copy of the
+      same project that the maintainer identified:
+      <a href="https://github.com/snapquast73-boop/LIVPBP2">snapquast73-boop/LIVPBP2</a>.
+      That copy’s <code>index.html</code> and <code>game.html</code> are
+      <strong>byte-identical</strong> to this repository’s original upload apart
+      from the “Flagged for Review” footer link, which confirms it is the same
+      codebase. The superseded stopgap (<code>assets/app.js</code>,
+      <code>assets/style.css</code>) was removed; its full contents remain in this
+      repository’s git history.
     </p>
-    <h2>Verification scope</h2>
     <p>
-      The active client is assets/app.js; the alternate assets/js files are not
-      loaded. The original upstream repository
-      (<a href="https://github.com/buffedlizard55-lab/MLB-Live-PBP">MLB-Live-PBP</a>)
-      returned HTTP 404 through GitHub's API during this audit. That does not
-      establish whether it is private, renamed, or deleted. Exact visual and
-      functional parity remains unverified. Regression tests use synthetic data;
-      the separate CI integration check reads the official
-      <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2024-10-30&amp;hydrate=linescore">historical schedule</a>
-      and its linked live feed. Passing that test does not certify every future
-      live response or establish permission for public reuse of MLB data.
+      The restored client’s own 48-check test suite now runs here
+      (<code>tools/*.mjs</code>), and the three headless-browser acceptance checks
+      were rewritten for the real markup — see “Verification performed” below.
     </p>
-    <h2>Missing values</h2>
+
+    <h2>What is verified, and against what</h2>
     <p>
-      Blank fields mean unverified or not reported by MLB. An unavailable feed
-      is not evidence that no review occurred. Each displayed data row links to
-      its MLB response; these live responses may change after display.
-    </p>
-    <h2>Independent verification pass — 2026-11-20 (session 4a224804)</h2>
-    <p>
-      Independent line-by-line audit of every tracked file in the repository.
-      Nothing below is marked verified unless an official source link is given;
-      where a value could not be confirmed from an official source it is left
-      blank and flagged, never inferred. Merge of this page is not blocked by
-      these items.
+      Every check below compares rendered output against a response fetched
+      directly from MLB Advanced Media’s public StatsAPI. Nothing is marked
+      verified without such a source, and where a value cannot be confirmed it is
+      left blank and flagged here — never inferred or zero-filled.
     </p>
     <ul>
       <li>
-        <strong>Alternate assets are unused, unverified code.</strong>
-        <code>assets/js/api.js</code>, <code>ui.js</code>, <code>reviews.js</code>,
-        <code>feed-log.js</code>, <code>scoreboard.js</code>, <code>props.js</code>,
-        <code>game.js</code>, <code>reviews-feed.js</code> and
-        <code>assets/css/style.css</code> (≈1,500 lines, added by
-        <a href="https://github.com/snapquast73-boop/LIVPBP1/pull/2">PR #2</a>)
-        are loaded by no page; the active client is <code>assets/app.js</code>.
-        Their behaviour was not verified against official sources — for example,
-        the unused replay-review parser reads play- and event-level
-        <code>reviewDetails</code> objects whose field names
-        (<code>reviewType</code>, <code>isOverturned</code>, <code>inProgress</code>)
-        are now confirmed in an official sample for the active client; that
-        does not verify the alternate parser. The unused team-logo CDN pattern
-        (<code>https://www.mlbstatic.com/team-logos/&lt;id&gt;.svg</code>) could not
-        be retrieved when probed through the audit pipeline (HTTP 500), so it is
-        unverified, not broken. They remain in the repository (not discarded);
-        removal or adoption is a maintainer decision.
+        <strong>Scoreboard</strong> —
+        <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;hydrate=team,linescore,probablePitcher,decisions,review,flags">official schedule</a>:
+        team names, W-L records, scores, status pill, venue and probable pitchers
+        are matched card by card (<code>tests/verify_schedule.py</code>).
       </li>
       <li>
-        <strong><code>server.mjs</code> (inherited, not run on GitHub Pages).</strong>
-        Unauthenticated <code>POST /api/feed-log</code> accepting up to 50&nbsp;MB,
+        <strong>Game view</strong> —
+        <a href="https://statsapi.mlb.com/api/v1.1/game/775296/feed/live">official feed/live</a>:
+        header score and state, every linescore cell, every batting and pitching
+        row, and every play description are matched cell by cell, each row
+        carrying exactly one source link (<code>tests/verify-game.mjs</code>).
+      </li>
+      <li>
+        <strong>Replay Feed</strong> —
+        <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2024-10-30&amp;hydrate=linescore">official schedule</a>
+        plus each game’s linked feed: the scan covers every game the schedule does
+        not report as <code>Preview</code>; every row names official team
+        abbreviations; and every challenge counter shown is reproduced exactly
+        from the official <code>gameData.review</code> /
+        <code>gameData.absChallenges</code> fields. A counter MLB did not report
+        is not displayed at all (<code>tests/verify-reviews.mjs</code>).
+      </li>
+      <li>
+        <strong>Official review fields.</strong> The
+        <a href="https://statsapi.mlb.com/api/v1.1/game/822974/feed/live?fields=gamePk,gameData,review,absChallenges,away,home,used,usedSuccessful,usedFailed,remaining,liveData,plays,allPlays,reviewDetails,reviewType,isOverturned,inProgress,playEvents">Tigers–Rays feed</a>
+        exposes review results at both play and event level plus the reported
+        replay and ABS counters, and MLB’s
+        <a href="https://www.mlb.com/rays/video/garrett-cleavinger-ball-to-jahmai-jones-capture-review">ABS highlight from that game</a>
+        identifies the overturned pitch challenge. The
+        <a href="https://statsapi.mlb.com/api/v1/eventTypes">eventTypes registry</a>
+        contains <code>os_ruling_pending_primary</code> and
+        <code>os_ruling_pending_prior</code> (“Official Scorer Ruling Pending”).
+      </li>
+      <li>
+        <strong>Archived World Series game.</strong>
+        <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2024-10-30&amp;hydrate=linescore">2024-10-30 schedule</a>
+        — gamePk 775296, Dodgers 7 at Yankees 6, Final; full hydrate gives
+        <code>decisions.winner</code> Blake Treinen and review counters home used
+        1 / remaining 1. These pin the archived game only.
+      </li>
+    </ul>
+
+    <h2>Verification performed in this session</h2>
+    <ul>
+      <li>
+        <strong>Syntax.</strong> <code>node --check</code> passed for all eight
+        restored modules and <code>server.mjs</code>.
+      </li>
+      <li>
+        <strong>Client test suite (network-free, 48 checks).</strong>
+        <code>tools/page-render-test.mjs</code> (7 page renders, 0 failed),
+        <code>review-test.mjs</code> (14), <code>reviews-feed-test.mjs</code> (6),
+        <code>feed-fields-test.mjs</code> (9) and <code>hit-model-test.mjs</code>
+        (12) all pass.
+      </li>
+      <li>
+        <strong>The acceptance checks were proven able to fail.</strong> Deliberate
+        corruptions were injected and each was caught: a wrong linescore total, a
+        removed source link, a fabricated challenge counter, a false “full scan”
+        claim, a wrong score, a wrong team name, a fabricated status pill, a
+        missing venue and a dropped game card.
+      </li>
+      <li>
+        <strong>Local link integrity.</strong>
+        <code>python3 tools/check-local-links.py</code> and
+        <code>python3 tests/check.py</code> both pass: every local
+        <code>href</code>/<code>src</code> in every page resolves to a file that
+        exists.
+      </li>
+      <li>
+        <strong>Real-browser checks in CI.</strong> Headless Chrome renders the
+        deployed pages and the results are compared with freshly downloaded
+        official responses on every pull request and after every Pages
+        deployment.
+      </li>
+    </ul>
+
+    <h2>Flagged irregularities</h2>
+    <ul>
+      <li>
+        <strong>Exact parity with the original site cannot be proven.</strong>
+        The upstream repository named by the inherited README,
+        <a href="https://github.com/buffedlizard55-lab/MLB-Live-PBP">buffedlizard55-lab/MLB-Live-PBP</a>,
+        returns HTTP 404 through the GitHub API, so the true original cannot be
+        compared against. Parity is instead anchored to the maintainer-identified
+        working copy (LIVPBP2), whose HTML is byte-identical to this upload.
+      </li>
+      <li>
+        <strong>Live MLB data changes continuously.</strong> Every figure is
+        point-in-time. Passing CI certifies the response the check downloaded, not
+        any future response. An unavailable feed is not evidence that no review
+        occurred.
+      </li>
+      <li>
+        <strong>Review classification is inference from reported codes.</strong>
+        Rows are grouped using MLB’s reported <code>reviewType</code> and status
+        codes; the ABS code (<code>MJ</code>) is confirmed against MLB’s own ABS
+        highlight, other codes are shown as reported rather than given a more
+        specific label. This classification is not an official MLB ruling field.
+      </li>
+      <li>
+        <strong>“Runs at risk” and the score trackers are computed, not reported.</strong>
+        The Before / Possible-after tracker and the ⚠️ Runs-at-Risk banner are
+        derived from the reviewed play’s own scoring movements. A “possible”
+        score is explicitly not a prediction — on a boundary review MLB may
+        instead place runners.
+      </li>
+      <li>
+        <strong>Team logo and headshot CDN.</strong> Images come from
+        <code>www.mlbstatic.com</code> / <code>img.mlbstatic.com</code>. If an
+        image fails to load the client hides it
+        (<code>onerror</code>) rather than showing a broken icon, so a blocked
+        CDN degrades to text only.
+      </li>
+      <li>
+        <strong><code>server.mjs</code> is inherited, not run on GitHub Pages, and not
+        reviewed as a service.</strong> It exposes an unauthenticated
+        <code>POST /api/feed-log</code> accepting up to 50&nbsp;MB with
         <code>Access-Control-Allow-Origin: *</code>, bound to <code>0.0.0.0</code>
-        with no rate limiting: any website or machine that can reach the port can
-        write arbitrary JSON logs to disk. Static-file path handling relies on
+        and without rate limiting, so anyone who can reach the port can write
+        arbitrary JSON to <code>data/</code>. Static-file handling relies on
         <code>path.normalize</code> plus a prefix string check rather than
-        <code>path.relative</code>. Recommend localhost/LAN-only use or
-        authentication if exposed; flagged, not modified.
-      </li>
-      <li>
-        <strong><code>.gitignore</code> did not exclude <code>data/</code>.</strong>
-        Running the optional local server writes runtime feed logs to
-        <code>data/</code>; added in this pass so logs are never committed.
+        <code>path.relative</code>. Run it on localhost/LAN only, or add
+        authentication, before exposing it. GitHub Pages never executes it.
       </li>
       <li>
         <strong><code>404.html</code> uses root-absolute <code>/LIVPBP1/…</code> URLs.</strong>
         Correct for this project page as deployed under
-        <a href="https://snapquast73-boop.github.io/LIVPBP1/">snapquast73-boop.github.io/LIVPBP1</a>;
-        breaks if the repository is renamed or forked to another base path.
-        Retained deliberately; a fork must update those paths.
+        <a href="https://snapquast73-boop.github.io/LIVPBP1/">snapquast73-boop.github.io/LIVPBP1</a>,
+        but a fork or rename must update those paths.
       </li>
       <li>
-        <strong>Stale asset comments.</strong> The pages’ preconnect comments named
-        the nonexistent <code>assets/js/api.js</code> and described image-CDN
-        dns-prefetch hints that the active client never uses; both corrected in
-        this pass (comment-only change, no behaviour change).
+        <strong>Public reuse of MLB data is not asserted here.</strong> The
+        StatsAPI is a public endpoint but this page makes no claim about
+        permission or terms for redistribution. The site is an unofficial fan
+        project and states that it is not affiliated with MLB or MLB Advanced
+        Media.
       </li>
       <li>
-        <strong>Audit pipeline limitations.</strong> The audit sandbox’s TLS
-        allowlist could not reach statsapi.mlb.com directly; official-source
-        verification ran through GitHub Actions (PR checks) and an independent
-        fetch of the same official endpoints on 2026-11-20. Live MLB data changes
-        continuously; all figures are point-in-time. The standalone boxscore
-        endpoint
-        (<code>https://statsapi.mlb.com/api/v1.1/game/775296/boxscore</code>)
-        could not be retrieved by the audit pipeline (fetch error); the data the
-        site renders comes from the embed in
-        <a href="https://statsapi.mlb.com/api/v1.1/game/775296/feed/live">feed/live</a>,
-        which the CI integration check does read and compare
-        (<a href="https://github.com/snapquast73-boop/LIVPBP1/actions/runs/44828090653">example run</a>).
-      </li>
-      <li>
-        <strong>Sources verified on 2026-11-20 (official MLB Advanced Media endpoints):</strong>
-        <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2024-10-30&amp;hydrate=linescore">schedule (hydrate=linescore)</a> —
-        gamePk 775296, Dodgers 7 at Yankees 6, Final,
-        <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2024-10-30&amp;hydrate=team,linescore,probablePitcher(note),decisions,flags,review,game(content(summary))">same schedule, full hydrate</a> —
-        decisions.winner Blake Treinen, review counters (home used 1, remaining 1; away remaining 2),
-        <a href="https://statsapi.mlb.com/api/v1.1/game/775296/feed/live">feed/live for gamePk 775296</a> —
-        teams, records, players map and plays present;
-        <a href="https://statsapi.mlb.com/api/v1/eventTypes">eventTypes registry</a> —
-        <code>os_ruling_pending_primary</code> and
-        <code>os_ruling_pending_prior</code> (“Official Scorer Ruling Pending”)
-        are present, confirming the registry-level claim in the original
-        documentation. The active client now includes events with these codes
-        when they are present in a play result or event.
-        These pin the archived Final game only; they do not certify future
-        live responses.
-      </li>
-      <li>
-        <strong>Upstream repository.</strong>
-        <a href="https://github.com/buffedlizard55-lab/MLB-Live-PBP">buffedlizard55-lab/MLB-Live-PBP</a>
-        returns HTTP 404 through the GitHub API (re-verified 2026-11-20). Whether it
-        is private, renamed or deleted cannot be determined; exact parity with the
-        original site therefore remains unverified and unverifiable.
-      </li>
-      <li>
-        <strong>Replay-feed verification.</strong>
-        The <a href="https://statsapi.mlb.com/api/v1.1/game/822974/feed/live?fields=gamePk,gameData,review,absChallenges,away,home,used,usedSuccessful,usedFailed,remaining,liveData,plays,allPlays,reviewDetails,reviewType,isOverturned,inProgress,playEvents">official Tigers–Rays feed</a>
-        exposes review results at both play and event level, and the reported
-        replay and ABS counters used in the game view. MLB’s
-        <a href="https://www.mlb.com/rays/video/garrett-cleavinger-ball-to-jahmai-jones-capture-review">ABS highlight from the same game</a>
-        identifies the overturned pitch challenge. The
-        <a href="https://statsapi.mlb.com/api/v1.1/game/775296/feed/live?fields=gameData,review,away,home,used,remaining,liveData,plays,allPlays,reviewDetails,reviewType,isOverturned,inProgress,challengeTeamId">official World Series feed sample</a>
-        includes a non-ABS review stored at play level. Snapshots do not validate
-        how future live polls behave or reconstruct earlier calls. Partial scans
-        show only available rows and flag aggregate counts as unverified. Sound
-        and desktop notifications remain disabled.
-      </li>
-      <li>
-        <strong>Permanent CI assertions.</strong>
-        <a href="https://github.com/snapquast73-boop/LIVPBP1/blob/main/.github/workflows/feed-shape.yml">.github/workflows/feed-shape.yml</a>
-        (added in this pass) re-asserts the archived 2024-10-30 game’s schedule,
-        full-hydrate counters, feed contract and the eventTypes registry on every
-        future pull request, with informational probes clearly labelled as
-        non-blocking. Passing it is an archived-game check, not certification of
-        future MLB data.
+        <strong>Unused files retained.</strong> <code>tests/verify-game.mjs</code>,
+        <code>tests/verify-reviews.mjs</code>, <code>tests/verify_schedule.py</code>
+        and <code>tools/*</code> are test assets, not shipped to the browser.
+        <code>data/</code> is git-ignored so optional server logs are never
+        committed.
       </li>
     </ul>
-    <h2>Replay Feed browser acceptance &amp; final integration — 2026-11-20 (session a8ae1984)</h2>
+
+    <h2>Reporting a problem</h2>
     <p>
-      Added real-Chrome row-by-row acceptance verification for
-      <code>reviews.html</code>
-      (<a href="https://github.com/snapquast73-boop/LIVPBP1/blob/main/tests/verify-reviews.mjs">tests/verify-reviews.mjs</a>
-      and
-      <a href="https://github.com/snapquast73-boop/LIVPBP1/blob/main/.github/workflows/reviews-acceptance.yml">.github/workflows/reviews-acceptance.yml</a>)
-      complementing the existing browser checks for <code>index.html</code> and
-      <code>game.html</code>. On pull requests and after each GitHub Pages
-      deployment, headless Chrome loads
-      <code>reviews.html?date=2024-10-30</code> and verifies that every rendered
-      Replay Feed row, filter button, and expandable challenge-counter row
-      matches the independently downloaded
-      <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2024-10-30&amp;hydrate=linescore">official MLB schedule</a>
-      and
-      <a href="https://statsapi.mlb.com/api/v1.1/game/775296/feed/live">official live game feed</a>
-      with exact source links and without substituting values for missing fields.
-      As with all historical checks, this verifies the archived sample response
-      only, not future live games or original upstream feature parity.
+      Consult <a href="https://www.mlb.com/scores">MLB scores and Gameday</a> for
+      official results. If a value here disagrees with MLB, the page is wrong —
+      every displayed data row links to the MLB response it came from so the two
+      can be compared directly.
     </p>
     <h2>Refresh failures and verification limits</h2>
     <p>Replay totals and challenge counters retained after a failed schedule refresh are
