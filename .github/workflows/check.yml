@@ -1,11 +1,18 @@
 name: Check scoreboard
-on: pull_request
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Upstream contract drift shows up here even with no open pull request.
+    - cron: '17 3 * * *'
 permissions:
   contents: read
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -13,10 +20,11 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts
-      - name: Syntax, client tests and link integrity
+      - name: Syntax, deterministic client suites and link integrity
         run: npm test
       - name: Check official historical MLB responses
         run: |
+          set -euo pipefail
           curl -fsS --retry 3 'https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore,review' > /tmp/schedule
           game=$(jq -er '.dates[0].games[0].gamePk' /tmp/schedule)
           curl -fsS --retry 3 "https://statsapi.mlb.com/api/v1.1/game/$game/feed/live" -o /tmp/feed
@@ -24,9 +32,22 @@ jobs:
           jq -e '.gameData.review.home.remaining | numbers' /tmp/feed
       - name: Render the published scoreboard in a real browser and compare to MLB
         run: |
+          set -euo pipefail
           python3 -m http.server 8000 --bind 127.0.0.1 >/tmp/site.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8000/index.html >/dev/null && break; sleep 1; done
           google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=10000 \
             --dump-dom 'http://127.0.0.1:8000/index.html?date=2024-10-30' > /tmp/rendered
           python3 tests/verify_schedule.py /tmp/schedule /tmp/rendered 2024-10-30
           echo "Verified the scoreboard against [MLB schedule](https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore,review)." >> "$GITHUB_STEP_SUMMARY"
+      - name: Every rendered value against the official MLB payload
+        run: npm run -s test:pages
+      - name: Report the official endpoints the run compared against
+        if: always()
+        run: |
+          {
+            echo "### Official sources compared against"
+            echo "- https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore,review"
+            echo "- https://statsapi.mlb.com/api/v1.1/game/775296/feed/live"
+            echo "- https://statsapi.mlb.com/api/v1/gameStatus"
+            echo "- https://statsapi.mlb.com/api/v1/eventTypes"
+          } >> "$GITHUB_STEP_SUMMARY"
