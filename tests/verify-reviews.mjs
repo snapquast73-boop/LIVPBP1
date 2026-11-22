@@ -105,8 +105,15 @@ const scannable = games.filter((g) => g.status?.abstractGameState !== 'Preview')
 const statusLine = doc.getElementById('status-line')?.textContent ?? '';
 assert.match(
   statusLine,
-  new RegExp(`Scanned ${scannable.length} game\\(s\\)`),
+  new RegExp(`Scanned ${scannable.length}/${scannable.length} game\\(s\\)`),
   `Replay Feed must report scanning all ${scannable.length} non-Preview game(s) on the official schedule`
+);
+// CI downloads every feed, so a complete scan must carry no staleness or
+// incompleteness warning. If it did, the totals below would not be complete.
+assert.equal(
+  doc.querySelector('#feed-stats .scan-health')?.textContent.trim() ?? '',
+  '',
+  'a complete scan must not label its totals stale or incomplete'
 );
 assert.doesNotMatch(statusLine, /error|failed/i, 'Replay Feed reported an error');
 // The banner is the documented ⚠️ Runs at Risk feature: it lists each game with

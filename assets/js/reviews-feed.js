@@ -118,6 +118,21 @@
     try { window.history.replaceState({}, '', url.toString()); } catch (err) { /* ignore */ }
   }
 
+  /**
+   * Health of the most recent scan, so a failed refresh can never leave old
+   * totals looking current. `reason` is shown on the page; the totals are kept
+   * but explicitly labelled, never silently presented as up to date.
+   */
+  var scanHealth = { stale: false, reason: '', failedGames: 0, scanned: 0 };
+
+  function setScanHealth(health) {
+    scanHealth = health;
+  }
+
+  function MBLAPI_QUIET_TAIL() {
+    return MLBAPI.quietRemainingMs() > 0 ? ' · API asked us to slow down' : '';
+  }
+
   function setStatus(text) {
     var el = document.getElementById('status-line');
     if (el) el.textContent = text;
@@ -274,6 +289,14 @@
       .catch(function (err) {
         if (request !== latestScan) return;
         console.error(err);
+        // Keep whatever was already collected, but say plainly that it is old.
+        setScanHealth({
+          stale: true,
+          reason: 'Latest update failed: ' + err.message,
+          failedGames: 0,
+          scanned: 0,
+        });
+        renderAll();
         setStatus('Error scanning schedule: ' + err.message);
         scheduleNextScan([]);
       })
@@ -285,6 +308,10 @@
     var irregularities = [];
     var snapshotNext = {};
     var ripples = [];
+
+    // A feed that could not be fetched is *not* evidence that the game had no
+    // reviews, so the totals below cannot be presented as complete.
+    var unscanned = result.feeds.filter(function (f) { return !f; }).length;
 
     result.feeds.forEach(function (feed, idx) {
       if (!feed) return;
@@ -358,10 +385,21 @@
     merged.savedAt = Date.now();
     log = FeedLog.saveDate(currentDate, merged);
 
+    var scanned = result.scannable.length - unscanned;
+    setScanHealth({
+      stale: false,
+      reason: unscanned
+        ? 'Totals incomplete: ' + unscanned + ' of ' + result.scannable.length +
+          ' scanned game feed(s) were unavailable, so reviews in those games are unknown, not absent.'
+        : '',
+      failedGames: unscanned,
+      scanned: scanned,
+    });
+
     renderAll();
     setStatus('Updated ' + new Date().toLocaleTimeString() + ' · Scanned ' +
-      result.scannable.length + ' game(s)' +
-      (MLBAPI.quietRemainingMs() > 0 ? ' · API asked us to slow down' : ''));
+      scanned + '/' + result.scannable.length + ' game(s)' +
+      (MBLAPI_QUIET_TAIL()));
   }
 
   /* --------------------------------------------------------------- render */
@@ -407,7 +445,13 @@
       ['✏️ Scoring Changes', changes.length],
       ['Flagged', flagged.length],
     ];
-    el.innerHTML = boxes.map(function (b) {
+    var notice = scanHealth.stale || scanHealth.reason
+      ? '<div class="scan-health">' +
+        (scanHealth.stale ? '⚠️ Stale data — ' : '⚠️ Incomplete data — ') +
+        UI.esc(scanHealth.reason.replace(/^(Latest update failed: |Totals incomplete: )/, '')) +
+        '</div>'
+      : '';
+    el.innerHTML = notice + boxes.map(function (b) {
       return '<div class="stat-box"><div class="stat-val">' + b[1] + '</div>' +
         '<div class="stat-lbl">' + UI.esc(b[0]) + '</div></div>';
     }).join('');
