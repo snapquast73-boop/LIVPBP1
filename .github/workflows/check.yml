@@ -5,6 +5,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -12,16 +13,20 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: node --check assets/app.js && npm test
-      - name: Render official MLB data through the active client
-        run: OFFICIAL_MLB_CHECK=1 node --test tests/app.test.cjs
+      - name: Syntax, client tests and link integrity
+        run: npm test
       - name: Check official historical MLB responses
         run: |
-          curl -fsS --retry 3 'https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=linescore' > /tmp/schedule
+          curl -fsS --retry 3 'https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore,review' > /tmp/schedule
           game=$(jq -er '.dates[0].games[0].gamePk' /tmp/schedule)
-          curl -fsS --retry 3 "https://statsapi.mlb.com/api/v1.1/game/$game/feed/live" | jq -e '.gameData.teams.home.name and .liveData.boxscore.teams.home.players and (.liveData.plays.allPlays|length>0)'
-      - name: Exercise published-client rendering against MLB
+          curl -fsS --retry 3 "https://statsapi.mlb.com/api/v1.1/game/$game/feed/live" -o /tmp/feed
+          jq -e '.gameData.teams.home.name and .liveData.boxscore.teams.home.players and (.liveData.plays.allPlays|length>0)' /tmp/feed
+          jq -e '.gameData.review.home.remaining | numbers' /tmp/feed
+      - name: Render the published scoreboard in a real browser and compare to MLB
         run: |
-          python3 -m http.server 8000 >/tmp/site.log 2>&1 &
-          google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=8000 --dump-dom 'http://localhost:8000/index.html?date=2024-10-30' >/tmp/rendered
-          python3 tests/verify_schedule.py /tmp/schedule /tmp/rendered
+          python3 -m http.server 8000 --bind 127.0.0.1 >/tmp/site.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8000/index.html >/dev/null && break; sleep 1; done
+          google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=10000 \
+            --dump-dom 'http://127.0.0.1:8000/index.html?date=2024-10-30' > /tmp/rendered
+          python3 tests/verify_schedule.py /tmp/schedule /tmp/rendered 2024-10-30
+          echo "Verified the scoreboard against [MLB schedule](https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore,review)." >> "$GITHUB_STEP_SUMMARY"
