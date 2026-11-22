@@ -21,7 +21,7 @@ included only the root HTML entry points (`index.html`, `game.html`, `reviews.ht
 `404.html`), `server.mjs`, `README.md`, `LICENSE`, and `.gitignore` — **none of
 the eight `assets/js/*.js` modules, `assets/css/style.css`, `docs/`, or `tools/`
 referenced by those pages were uploaded**. Earlier sessions built a small stopgap
-client (`assets/app.js`) so the site would render at all, which is why the page
+client (`app.js`) so the site would render at all, which is why the page
 previously lacked features compared with the working reference sites.
 
 All eight original client modules and stylesheet have been restored from the
@@ -70,9 +70,9 @@ npm ci --ignore-scripts && npm test
 
 - `node --check` syntax validation on all eight `assets/js/*.js` modules, `server.mjs`, and `tools/verify-table-sources.mjs`;
 - `tools/page-render-test.mjs` (7 jsdom page renders, 0 failures), `tools/review-test.mjs` (14 checks), `tools/reviews-feed-test.mjs` (6 checks), `tools/feed-fields-test.mjs` (9 checks), and `tools/hit-model-test.mjs` (12 checks);
-- `tools/check-local-links.py`, `tests/check.py`, and `tools/verify-table-sources.mjs`, which verify zero broken local links across all HTML and Markdown files and verify that every HTML/Markdown table row and rendered Replay Feed row carries a direct official source link.
+- `tools/check-local-links.py`, `tools/link-check.mjs`, `tests/check.py`, and `tools/verify-table-sources.mjs`, which verify zero broken local links across all HTML and Markdown files and verify that every HTML/Markdown table row and rendered Replay Feed row carries a direct official source link.
 
-Real-browser and live-API checks run in GitHub Actions against freshly downloaded official MLB responses and the deployed GitHub Pages site:
+Real-browser and live-API checks (`npm run test:pages`, `node tests/live-e2e.mjs`, and browser verifiers) run in GitHub Actions against freshly downloaded official MLB responses and the deployed GitHub Pages site:
 
 | Check | Workflow | Compares | Official Source |
 | --- | --- | --- | --- |

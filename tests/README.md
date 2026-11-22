@@ -23,6 +23,6 @@ confirmed to fail on injected corruptions before being trusted — see the
 `href`/`src` in any page points to a file that does not exist.
 
 The synthetic jsdom suite that used to live here (`app.test.cjs`) tested the
-superseded stopgap client `assets/app.js`. That client was removed when the real
+superseded stopgap client (`app.js`). That client was removed when the real
 modular client was restored; the equivalent — and larger — coverage now lives in
 `../tools/` and runs as part of `npm test`.

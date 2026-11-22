@@ -104,6 +104,12 @@
             <td><a href="http://gdx.mlb.com/components/copyright.txt" target="_blank" rel="noopener">MLBAM copyright.txt</a> · <a href="https://www.mlb.com/official-information/terms-of-use" target="_blank" rel="noopener">MLB.com Terms of Use</a></td>
           </tr>
           <tr>
+            <td>Sound chime &amp; desktop notification alerts (<code>Web Audio</code> / <code>Notification</code> APIs)</td>
+            <td></td>
+            <td><strong>UNVERIFIED IN HEADLESS CI</strong> — Toggle controls and Web Audio raindrop chime synthesis are wired in <code>assets/js/reviews-feed.js</code>, but audible playback and OS notification prompts require interactive browser gestures and cannot be asserted headlessly.</td>
+            <td><a href="https://github.com/snapquast73-boop/LIVPBP1/blob/main/reviews.html" target="_blank" rel="noopener">LIVPBP1 reviews.html</a></td>
+          </tr>
+          <tr>
             <td>GitHub Pages deployment configuration &amp; SPA <code>404.html</code> path</td>
             <td><code>status: "built"</code>, <code>branch: "main"</code>, <code>path: "/"</code>, <code>https_enforced: true</code></td>
             <td><strong>Verified (with path note)</strong> — <code>404.html</code> uses root-absolute <code>/LIVPBP1/…</code> links matching this Pages subpath; forks under another repo name must update those paths, and optional <code>server.mjs</code> is never executed on GitHub Pages.</td>
@@ -150,7 +156,8 @@
         <strong>Scoreboard</strong> —
         <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;hydrate=team,linescore,probablePitcher,decisions,review,flags">official schedule</a>:
         team names, W–L records, scores, status pill, venue, decisions, and
-        probable pitchers are matched card by card (<code>tests/verify_schedule.py</code>).
+        probable pitchers are matched card by card (<code>tests/verify_schedule.py</code>,
+        <code>tests/official-e2e.mjs</code>, and <code>tests/live-e2e.mjs</code>).
       </li>
       <li>
         <strong>Game view</strong> —

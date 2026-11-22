@@ -30,3 +30,20 @@ jobs:
             --dump-dom 'http://127.0.0.1:8000/index.html?date=2024-10-30' > /tmp/rendered
           python3 tests/verify_schedule.py /tmp/schedule /tmp/rendered 2024-10-30
           echo "Verified the scoreboard against [MLB schedule](https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore,review)." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Every rendered value against the official MLB payload
+        # tests/official-e2e.mjs fetches the official schedule/feed/gameStatus/
+        # eventTypes and compares each page's rendered DOM with them. No expected
+        # value in that file is hand-typed.
+        run: npm run -s test:pages
+
+      - name: Report the official endpoints compared against
+        if: always()
+        run: |
+          {
+            echo "### Official sources compared against"
+            echo "- https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore,decisions,review"
+            echo "- https://statsapi.mlb.com/api/v1.1/game/775296/feed/live"
+            echo "- https://statsapi.mlb.com/api/v1/gameStatus"
+            echo "- https://statsapi.mlb.com/api/v1/eventTypes"
+          } >> "$GITHUB_STEP_SUMMARY"
