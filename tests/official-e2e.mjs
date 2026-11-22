@@ -357,6 +357,8 @@ const battingRows = () => all(gamePage.doc, '#boxscore-wrap .boxscore-table:not(
   .flatMap(tableRows);
 const pitchingRows = () => all(gamePage.doc, '#boxscore-wrap .pitching-table').flatMap(tableRows);
 
+const cellStr = (v) => (v === null || v === undefined || v === '' ? '' : String(v));
+
 check('box score lists every official batter with the official AB, R, H, RBI, BB and SO', () => {
   const rows = battingRows();
   let checked = 0;
@@ -365,15 +367,15 @@ check('box score lists every official batter with the official AB, R, H, RBI, BB
     for (const id of box.batters || []) {
       const p = box.players[`ID${id}`];
       if (!p) continue;
-      const b = p.stats.batting;
+      const b = p.stats?.batting || {};
       const row = rows.find((r) => r.batter === p.person.fullName);
       assert.ok(row, `missing batting row for ${p.person.fullName}`);
-      assert.equal(Number(row.ab), b.atBats, `${p.person.fullName} AB`);
-      assert.equal(Number(row.r), b.runs ?? 0, `${p.person.fullName} R`);
-      assert.equal(Number(row.h), b.hits, `${p.person.fullName} H`);
-      assert.equal(Number(row.rbi), b.rbi ?? 0, `${p.person.fullName} RBI`);
-      assert.equal(Number(row.bb), b.baseOnBalls ?? 0, `${p.person.fullName} BB`);
-      assert.equal(Number(row.so), b.strikeOuts ?? 0, `${p.person.fullName} SO`);
+      assert.equal(row.ab, cellStr(b.atBats), `${p.person.fullName} AB`);
+      assert.equal(row.r, cellStr(b.runs), `${p.person.fullName} R`);
+      assert.equal(row.h, cellStr(b.hits), `${p.person.fullName} H`);
+      assert.equal(row.rbi, cellStr(b.rbi), `${p.person.fullName} RBI`);
+      assert.equal(row.bb, cellStr(b.baseOnBalls), `${p.person.fullName} BB`);
+      assert.equal(row.so, cellStr(b.strikeOuts), `${p.person.fullName} SO`);
       checked += 1;
     }
   }
@@ -389,15 +391,15 @@ check('box score lists every official pitcher with the official IP, H, R, ER, BB
     for (const id of box.pitchers || []) {
       const p = box.players[`ID${id}`];
       if (!p) continue;
-      const t = p.stats.pitching;
+      const t = p.stats?.pitching || {};
       const row = rows.find((r) => r.pitcher === p.person.fullName);
       assert.ok(row, `missing pitching row for ${p.person.fullName}`);
-      assert.equal(row.ip, String(t.inningsPitched), `${p.person.fullName} IP`);
-      assert.equal(Number(row.h), t.hits ?? 0, `${p.person.fullName} H`);
-      assert.equal(Number(row.r), t.runs ?? 0, `${p.person.fullName} R`);
-      assert.equal(Number(row.er), t.earnedRuns ?? 0, `${p.person.fullName} ER`);
-      assert.equal(Number(row.bb), t.baseOnBalls ?? 0, `${p.person.fullName} BB`);
-      assert.equal(Number(row.so), t.strikeOuts ?? 0, `${p.person.fullName} SO`);
+      assert.equal(row.ip, cellStr(t.inningsPitched), `${p.person.fullName} IP`);
+      assert.equal(row.h, cellStr(t.hits), `${p.person.fullName} H`);
+      assert.equal(row.r, cellStr(t.runs), `${p.person.fullName} R`);
+      assert.equal(row.er, cellStr(t.earnedRuns), `${p.person.fullName} ER`);
+      assert.equal(row.bb, cellStr(t.baseOnBalls), `${p.person.fullName} BB`);
+      assert.equal(row.so, cellStr(t.strikeOuts), `${p.person.fullName} SO`);
       checked += 1;
     }
   }
@@ -667,7 +669,11 @@ check('page script order puts dependencies before their users', () => {
 });
 
 console.log(`\nofficial-e2e: ${passed} checks passed, ${failed.length} failed`);
+for (const p of [scoreboard, gamePage, reviewsPage, feedPage]) {
+  try { p.window.close(); } catch { /* ignore */ }
+}
 if (failed.length) {
   for (const f of failed) console.error(`\n--- ${f.name}\n${f.err.stack}`);
   process.exit(1);
 }
+process.exit(0);
