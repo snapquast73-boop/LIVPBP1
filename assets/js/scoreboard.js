@@ -338,7 +338,15 @@
       el.innerHTML = '<div class="empty-state">No games found for this date/filter.</div>';
       return;
     }
-    el.innerHTML = filtered.map(gameCard).join('');
+    // Every card links to its game page (a card is itself an <a>, so the
+    // official request behind the whole slate is attributed once, beneath the
+    // grid), keeping a source link reachable for every value shown above.
+    var scheduleUrl = MLBAPI.BASE_V1 + '/schedule?sportId=' + MLBAPI.SPORT_ID +
+      '&date=' + currentDate + '&hydrate=' + HYDRATE;
+    el.innerHTML = filtered.map(gameCard).join('') +
+      '<div class="muted small" style="grid-column:1/-1;text-align:right">' +
+      'Schedule source: <a href="' + UI.esc(scheduleUrl) +
+      '" target="_blank" rel="noopener">statsapi.mlb.com</a></div>';
   }
 
   function goToDate(next) {

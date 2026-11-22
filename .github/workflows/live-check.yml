@@ -83,7 +83,20 @@ jobs:
           echo "Probed $(echo $files | wc -w) file(s) at $base" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
           exit $fail
 
+      # The deployed site (and, on a pull request, the candidate tree served
+      # locally by the probe step above), driven end to end in a real browser
+      # against the live StatsAPI: CSS, script tags, CORS and live requests all
+      # have to work.
       - name: Deployed site against the official MLB payload in a real browser
         env:
           BASE_URL: ${{ github.event_name == 'pull_request' && 'http://127.0.0.1:8000/' || 'https://snapquast73-boop.github.io/LIVPBP1/' }}
         run: node tests/live-e2e.mjs
+
+      - name: Report the official endpoints the deployed-site check compared against
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          {
+            echo "### Deployed-site check sources"
+            echo "- https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore,decisions,review"
+            echo "- https://statsapi.mlb.com/api/v1.1/game/775296/feed/live"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -157,6 +157,52 @@ plays.forEach((row, i) => {
 });
 console.log(`Verified ${plays.length} play-by-play row(s) against ${source}`);
 
+// ------------------------------------------- challenges & reviews (tab panel)
+// Mirror of the client's collectReviewDetails (assets/js/reviews.js): every
+// non-empty official reviewDetails object — whole-play and pitch-level — with
+// the same per-play dedup key. The tab renders exactly one card per record.
+const officialReviewRecords = [];
+for (const play of (liveData.plays?.allPlays ?? [])) {
+  const seen = new Set();
+  const push = (rd, scope, playIndex) => {
+    if (!rd || typeof rd !== 'object') return;
+    const key = `${rd.reviewType || ''}|${scope}|${playIndex}|` +
+      `${rd.inProgress === true ? 'in' : 'done'}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    officialReviewRecords.push({ rd, play });
+  };
+  if (play.reviewDetails) push(play.reviewDetails, 'play', null);
+  for (const ev of (play.playEvents ?? [])) {
+    if (!ev) continue;
+    const idx = typeof ev.index === 'number' ? ev.index
+      : (ev.details && typeof ev.details.playIndex === 'number') ? ev.details.playIndex : null;
+    if (ev.reviewDetails) push(ev.reviewDetails, 'event', idx);
+    if (ev.details && ev.details.reviewDetails) push(ev.details.reviewDetails, 'event', idx);
+  }
+}
+const reviewCards = [...doc.querySelectorAll('#reviews-wrap .feed-card')];
+assert.equal(
+  reviewCards.length, officialReviewRecords.length,
+  `Challenges & Reviews renders ${reviewCards.length} card(s) but the official feed has ` +
+  `${officialReviewRecords.length} reviewDetails record(s)`
+);
+for (const [i, card] of reviewCards.entries()) {
+  const links = [...card.querySelectorAll('a')];
+  assert.equal(links.length, 1, `review card ${i + 1}: expected one source link, got ${links.length}`);
+  assert.equal(links[0].getAttribute('href'), source,
+    `review card ${i + 1}: source link must be the official feed`);
+  assert.equal(links[0].getAttribute('target'), '_blank', `review card ${i + 1}: source link opens in a new tab`);
+  assert.equal(links[0].textContent.trim(), 'MLB feed', `review card ${i + 1}: source link label`);
+}
+for (const rec of officialReviewRecords) {
+  const text = (rec.play.result?.description || rec.rd.reason || '').trim();
+  if (!text) continue;
+  assert.ok(reviewCards.some((c) => c.textContent.includes(text)),
+    `no review card renders the official record text: ${text.slice(0, 80)}`);
+}
+console.log(`Verified ${reviewCards.length} challenges/reviews card(s) against ${source}`);
+
 // ------------------------------------------------------------------ live panel
 const currentPlay = doc.querySelector('#live-panel .atbat');
 assert.ok(currentPlay, 'live panel missing');

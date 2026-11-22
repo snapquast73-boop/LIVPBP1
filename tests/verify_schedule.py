@@ -169,7 +169,19 @@ for game, (href, body) in zip(games, cards):
     if venue:
         assert venue in flat(body), f'{pk}: venue {venue!r} not shown on the card'
 
+# The whole slate is one official request; a game card is itself an anchor, so
+# the schedule URL the cards came from is attributed once beneath the grid. The
+# page must carry it, or no rendered value would trace back to an official link.
+schedule_source = (
+    'https://statsapi.mlb.com/api/v1/schedule'
+    f'?sportId=1&date={date}&hydrate=team,linescore,probablePitcher,decisions,review,flags'
+)
+assert schedule_source in html.replace('&amp;', '&'), (
+    'rendered scoreboard does not link the official schedule request '
+    f'({schedule_source})'
+)
+
 print(
     f'Verified all {len(cards)} scoreboard card(s) for {date}: teams, records, scores, '
-    'status and venue match the official MLB schedule'
+    'status and venue match the official MLB schedule; schedule source linked'
 )
