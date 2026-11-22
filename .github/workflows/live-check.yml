@@ -81,3 +81,8 @@ jobs:
 
           echo "Probed $(echo $files | wc -w) file(s) at $base" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
           exit $fail
+
+      - name: Deployed site against the official MLB payload in a real browser
+        env:
+          BASE_URL: https://snapquast73-boop.github.io/LIVPBP1/
+        run: node tests/live-e2e.mjs
