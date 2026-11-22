@@ -238,3 +238,26 @@ test('official day and feed contain the rendered ABS rows and reported counters'
   }
   console.log('Official replay sources checked:', scheduleUrl, gameUrl);
 });
+
+test('failed replay refresh marks retained totals stale across filters and clears on recovery', async () => {
+  let offline = false;
+  const fixture = { gamePk: 123, liveData: { plays: { allPlays: [
+    { reviewDetails: { reviewType: 'MV', inProgress: true } }
+  ] } } };
+  const { doc } = setup('reviews.html', url => offline
+    ? Promise.reject(Error('offline')) : ok(url.includes('/schedule?') ? schedule : fixture));
+  await settle();
+  assert.equal(doc.querySelectorAll('#feed-list article').length, 1);
+  offline = true;
+  doc.querySelector('#refresh-btn').click();
+  await settle();
+  assert.match(doc.querySelector('#feed-stats').textContent, /^Stale data/);
+  doc.querySelector('[data-filter="active"]').click();
+  assert.match(doc.querySelector('#feed-stats').textContent, /^Stale data/);
+  assert.equal(doc.querySelectorAll('#feed-list article').length, 1);
+  offline = false;
+  doc.querySelector('#refresh-btn').click();
+  await settle();
+  assert.doesNotMatch(doc.querySelector('#feed-stats').textContent, /Stale data/);
+  assert.equal(doc.querySelector('#banner').textContent, '');
+});
