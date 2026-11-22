@@ -494,12 +494,14 @@
       '<div class="scroll-x"><table class="boxscore-table">' +
         '<thead><tr><th>#</th><th>Batter</th><th>Pos</th><th>AB</th><th>R</th><th>H</th>' +
         '<th>RBI</th><th>BB</th><th>SO</th><th>Source</th></tr></thead>' +
-        '<tbody>' + (batRows || '<tr><td colspan="10" class="muted">No batting lines yet.</td></tr>') +
+        '<tbody>' + (batRows || '<tr><td colspan="9" class="muted">No batting lines yet.</td>' +
+          sourceCell([]) + '</tr>') +
         '</tbody></table></div>' +
       '<div class="scroll-x"><table class="boxscore-table pitching-table">' +
         '<thead><tr><th>#</th><th>Pitcher</th><th>Pos</th><th>IP</th><th>H</th>' +
         '<th>R</th><th>ER</th><th>BB</th><th>SO</th><th>Source</th></tr></thead>' +
-        '<tbody>' + (pitchRows || '<tr><td colspan="10" class="muted">No pitching lines yet.</td></tr>') +
+        '<tbody>' + (pitchRows || '<tr><td colspan="9" class="muted">No pitching lines yet.</td>' +
+          sourceCell([]) + '</tr>') +
         '</tbody></table></div>';
   }
 
@@ -585,6 +587,8 @@
       (challengeBits.length ? '<div class="muted small">' + challengeBits.join(' · ') + '</div>' : '') +
       scoreTracker(entry) +
       (entry.counterLine ? '<div class="muted small">' + UI.esc(entry.counterLine) + '</div>' : '') +
+      '<div class="muted small"><a href="' + UI.esc(feedUrl()) +
+        '" target="_blank" rel="noopener">MLB feed</a></div>' +
       '</div>';
   }
 

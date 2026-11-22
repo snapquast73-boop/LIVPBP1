@@ -15,7 +15,6 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        if: github.event_name == 'pull_request'
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -44,6 +43,8 @@ jobs:
           echo "Probing $base"
 
           files="index.html game.html reviews.html flagged.html 404.html
+                 SOURCE-PROVENANCE.md docs/verification-report.md
+                 docs/api-compliance.md docs/scoring-changes.md
                  assets/css/style.css assets/js/api.js assets/js/ui.js assets/js/reviews.js
                  assets/js/feed-log.js assets/js/scoreboard.js assets/js/props.js
                  assets/js/game.js assets/js/reviews-feed.js"
@@ -84,5 +85,5 @@ jobs:
 
       - name: Deployed site against the official MLB payload in a real browser
         env:
-          BASE_URL: https://snapquast73-boop.github.io/LIVPBP1/
+          BASE_URL: ${{ github.event_name == 'pull_request' && 'http://127.0.0.1:8000/' || 'https://snapquast73-boop.github.io/LIVPBP1/' }}
         run: node tests/live-e2e.mjs
