@@ -17,11 +17,11 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts
-      - name: Verify game headers, innings, batting rows, and play descriptions
+      - name: Verify game header, linescore, box-score and play rows cell by cell
         env:
           EVENT: ${{ github.event_name }}
         run: |
-          schedule='https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30'
+          schedule='https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore'
           pk=$(curl -fsS --retry 3 "$schedule" | jq -er '.dates[0].games[0].gamePk | numbers')
           source="https://statsapi.mlb.com/api/v1.1/game/$pk/feed/live"
           curl -fsS --retry 3 "$source" -o "$RUNNER_TEMP/feed.json"
@@ -29,9 +29,13 @@ jobs:
           if [[ "$EVENT" == pull_request ]]; then
             base=http://127.0.0.1:8000/
             python3 -m http.server 8000 --bind 127.0.0.1 > "$RUNNER_TEMP/server.log" 2>&1 &
-            curl -fsS --retry 5 --retry-connrefused "${base}game.html" >/dev/null
+            for _ in $(seq 1 30); do
+              curl -fsS "${base}game.html" >/dev/null 2>&1 && break
+              sleep 1
+            done
+            curl -fsS "${base}game.html" >/dev/null
           fi
           page="${base}game.html?gamePk=$pk&date=2024-10-30"
-          google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=8000 --dump-dom "$page" > "$RUNNER_TEMP/game.html"
+          google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=10000 --dump-dom "$page" > "$RUNNER_TEMP/game.html"
           node tests/verify-game.mjs "$RUNNER_TEMP/feed.json" "$RUNNER_TEMP/game.html" "$pk"
           echo "Verified game $pk against [MLB schedule]($schedule) and [MLB game feed]($source)." >> "$GITHUB_STEP_SUMMARY"
