@@ -3,8 +3,8 @@
   "private": true,
   "description": "Static MLB scoreboard, game view and replay feed built on the public MLB StatsAPI",
   "scripts": {
-    "syntax": "for f in assets/js/*.js; do node --check \"$f\" || exit 1; done && node --check server.mjs",
-    "test": "npm run syntax && node tools/page-render-test.mjs && node tools/review-test.mjs && node tools/reviews-feed-test.mjs && node tools/feed-fields-test.mjs && node tools/hit-model-test.mjs && python3 tools/check-local-links.py && python3 tests/check.py"
+    "syntax": "for f in assets/js/*.js tools/*.mjs tests/*.mjs; do node --check \"$f\" || exit 1; done && node --check server.mjs",
+    "test": "npm run syntax && node tools/page-render-test.mjs && node tools/review-test.mjs && node tools/reviews-feed-test.mjs && node tools/feed-fields-test.mjs && node tools/hit-model-test.mjs && node tools/verify-table-sources.mjs && python3 tools/check-local-links.py && python3 tests/check.py"
   },
   "devDependencies": {
     "jsdom": "26.1.0"

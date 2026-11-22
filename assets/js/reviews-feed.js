@@ -604,7 +604,9 @@
       (e.countersSummary ? '<div class="muted small">' + UI.esc(e.countersSummary) + '</div>' : '') +
       (e.note ? '<div class="muted small">' + UI.esc(e.note) + '</div>' : '') +
       (e.gamePk ? '<div class="muted small"><a href="game.html?gamePk=' +
-        encodeURIComponent(e.gamePk) + '">Open Game →</a></div>' : '') +
+        encodeURIComponent(e.gamePk) + '">Open Game →</a> · <a href="' +
+        UI.esc(MLBAPI.BASE_V11 + '/game/' + encodeURIComponent(e.gamePk) + '/feed/live') +
+        '" target="_blank" rel="noopener">MLB feed</a></div>' : '') +
     '</article>';
   }
 
