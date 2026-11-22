@@ -14,8 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # A deployment_status event does not check out this repository; every
+      # other trigger does, so the candidate tree and the real-browser step
+      # have something to work with.
       - uses: actions/checkout@v4
-        if: github.event_name == 'pull_request'
+        if: github.event_name != 'deployment_status'
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
