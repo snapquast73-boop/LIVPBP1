@@ -25,6 +25,12 @@ stylesheet under `assets/`, and none of those files were in the upload, so Pages
 original author's repository is gone (`buffedlizard55-lab/MLB-Live-PBP` returns 404), so it could not be
 copied back.
 
+A parallel session reached the same conclusion on the same day and merged PR #26 to `main`; the site code
+published here is that merge, and it is the same restoration described below. Where the two branches
+differed in code (`assets/js/reviews-feed.js`, `assets/css/style.css`), `main`'s newer version — which adds
+scan-health reporting so a failed refresh cannot pass stale totals off as current — is kept. This branch's
+addition is the verification described under "Verification".
+
 The client here is **not** a fresh re-implementation. `server.mjs` in this upload is byte-identical to the
 one in this owner's rebuild of the same project,
 [`snapquast73-boop/LIVPBP2`](https://github.com/snapquast73-boop/LIVPBP2), and the three uploaded pages

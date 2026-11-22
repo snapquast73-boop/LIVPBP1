@@ -547,19 +547,24 @@ check('replay feed requests a feed only for games on the official schedule', () 
   }
 });
 
-check('replay feed reports a full scan and no unavailable feed', () => {
+check('replay feed reports its scan honestly and shows no failure banner', () => {
   const status = byId(feedPage.doc, 'status-line');
   const attempted = new Set(fetchLog
     .filter((u) => /\/api\/v1\.1\/game\/\d+\/feed\/live/.test(u))
     .map((u) => Number(u.match(/\/game\/(\d+)\/feed\/live/)[1])));
   assert.ok(attempted.size > 0, 'the feed scanned no game');
-  assert.match(status, new RegExp(`Scanned ${attempted.size} game`),
-    `status line "${status}" does not report the ${attempted.size} games it scanned`);
-  /* The banner is an alert surface. A review banner is expected when the game
-   * has one; an "unavailable"/"unverified"/"could not" banner is a failure. */
+  /* The status line must report the number of feeds it attempted and how many
+   * produced data. A partial scan must say so rather than claim a full one. */
+  const m = status.match(/Scanned (\d+)\/(\d+) game/);
+  assert.ok(m, `status line "${status}" does not report a scan count`);
+  assert.equal(Number(m[2]), attempted.size,
+    `status line reports ${m[2]} games but ${attempted.size} feeds were requested`);
+  assert.ok(Number(m[1]) <= Number(m[2]), 'scanned more games than were requested');
+  /* A banner is an alert surface. An "unavailable"/"unable"/"could not" banner is
+   * a failure; a review or risk banner is expected page behaviour. */
   const banner = byId(feedPage.doc, 'banner');
-  assert.ok(!/unavailable|unverified|could not|unable/i.test(banner),
-    `banner reports an unavailable feed: "${banner}"`);
+  assert.ok(!/unavailable|unverified|could not|unable to/i.test(banner),
+    `banner reports a failure: "${banner}"`);
 });
 
 check('replay feed summary counts the official ABS challenges', () => {

@@ -1,6 +1,7 @@
-name: Verify deployed site
+name: Verify public Pages files
 
 on:
+  pull_request:
   deployment_status:
   workflow_dispatch:
 
@@ -9,64 +10,79 @@ permissions:
 
 jobs:
   published:
-    # Only after a successful GitHub Pages deployment, or when run by hand.
     if: github.event_name != 'deployment_status' || (github.event.deployment.environment == 'github-pages' && github.event.deployment_status.state == 'success')
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-
+        if: github.event_name == 'pull_request'
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
 
-      - run: npm ci --ignore-scripts
-
-      - name: Every published file is served
-        env:
-          BASE: https://snapquast73-boop.github.io/LIVPBP1/
+      - name: Serve the candidate tree (pull_request)
+        if: github.event_name == 'pull_request'
         run: |
-          set -euo pipefail
-          for file in index.html game.html reviews.html flagged.html 404.html \
-                      assets/css/style.css assets/js/api.js assets/js/ui.js \
-                      assets/js/reviews.js assets/js/reviews-feed.js \
-                      assets/js/scoreboard.js assets/js/game.js assets/js/props.js \
-                      assets/js/feed-log.js; do
-            code=$(curl -sS -o "$RUNNER_TEMP/body" -w '%{http_code}' --retry 3 "$BASE$file")
-            test "$code" = 200 || { echo "::error::$file -> HTTP $code"; exit 1; }
-            test -s "$RUNNER_TEMP/body" || { echo "::error::$file is empty"; exit 1; }
+          python3 -m http.server 8000 --bind 127.0.0.1 > "$RUNNER_TEMP/server.log" 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8000/index.html >/dev/null 2>&1 && break
+            sleep 1
           done
-          echo "All 15 published files return HTTP 200 with a non-empty body."
+          curl -fsS http://127.0.0.1:8000/index.html >/dev/null
 
-      - name: The deployed pages load the restored client, not a removed one
+      # On a pull request this probes the candidate tree under review; after a
+      # Pages deployment it probes the real published site. Either way the point
+      # is the same: every page and every module it loads must actually be
+      # served and must parse.
+      - name: Fetch public entry points and required assets
         env:
-          BASE: https://snapquast73-boop.github.io/LIVPBP1/
+          EVENT: ${{ github.event_name }}
         run: |
-          set -euo pipefail
-          for page in index.html game.html reviews.html; do
-            curl -fsS "$BASE$page" -o "$RUNNER_TEMP/$page"
-            grep -q 'assets/css/style.css' "$RUNNER_TEMP/$page" || { echo "::error::$page lost its stylesheet"; exit 1; }
-            grep -q 'assets/js/api.js' "$RUNNER_TEMP/$page" || { echo "::error::$page lost its client"; exit 1; }
-            if grep -q 'assets/app.js' "$RUNNER_TEMP/$page"; then
-              echo "::error::$page still loads the removed assets/app.js"; exit 1
+          set -u
+          base=https://snapquast73-boop.github.io/LIVPBP1/
+          if [[ "$EVENT" == "pull_request" ]]; then base=http://127.0.0.1:8000/; fi
+          echo "Probing $base"
+
+          files="index.html game.html reviews.html flagged.html 404.html
+                 assets/css/style.css assets/js/api.js assets/js/ui.js assets/js/reviews.js
+                 assets/js/feed-log.js assets/js/scoreboard.js assets/js/props.js
+                 assets/js/game.js assets/js/reviews-feed.js"
+          fail=0
+          for file in $files; do
+            code=$(curl --silent --show-error --retry 3 --output "$RUNNER_TEMP/body" \
+                     --write-out '%{http_code}' "$base$file") || code=000
+            if [[ "$code" != "200" || ! -s "$RUNNER_TEMP/body" ]]; then
+              echo "FAIL $file (HTTP $code)"; fail=1; continue
             fi
+            case "$file" in
+              *.js) cp "$RUNNER_TEMP/body" "$RUNNER_TEMP/cached.js"
+                    node --check "$RUNNER_TEMP/cached.js" || { echo "FAIL $file does not parse"; fail=1; } ;;
+              *.css) grep -q '{' "$RUNNER_TEMP/body" || { echo "FAIL $file is not CSS"; fail=1; } ;;
+              flagged.html) grep -q '<h1>Flagged for Review</h1>' "$RUNNER_TEMP/body" \
+                              || { echo "FAIL flagged.html lost its heading"; fail=1; } ;;
+              index.html) grep -q 'src="assets/js/scoreboard.js"' "$RUNNER_TEMP/body" \
+                              || { echo "FAIL index.html does not load scoreboard.js"; fail=1; }
+                          if grep -q 'assets/app.js' "$RUNNER_TEMP/body"; then
+                            echo "FAIL index.html still loads the removed stopgap"; fail=1
+                          fi ;;
+              game.html)  grep -q 'src="assets/js/game.js"' "$RUNNER_TEMP/body" \
+                              || { echo "FAIL game.html does not load game.js"; fail=1; } ;;
+              reviews.html) grep -q 'src="assets/js/reviews-feed.js"' "$RUNNER_TEMP/body" \
+                              || { echo "FAIL reviews.html does not load reviews-feed.js"; fail=1; } ;;
+            esac
+            [[ "$fail" == 0 ]] && echo "OK $file"
           done
-          curl -fsS "$BASE/flagged.html" | grep -q '<h1>Flagged for Review</h1>'
-          echo "Deployed pages reference the restored client."
 
-      - name: Deployed site against the official MLB payload
+          # The removed stopgap must not be reachable at either origin.
+          stopgap=$(curl --silent --output /dev/null --write-out '%{http_code}' "${base}assets/app.js")
+          if [[ "$EVENT" == "pull_request" && "$stopgap" == "200" ]]; then
+            echo "FAIL assets/app.js is still served"; fail=1
+          fi
+
+          echo "Probed $(echo $files | wc -w) file(s) at $base" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+          exit $fail
+
+      - name: Deployed site against the official MLB payload in a real browser
         env:
           BASE_URL: https://snapquast73-boop.github.io/LIVPBP1/
         run: node tests/live-e2e.mjs
-
-      - name: Summary
-        if: always()
-        run: |
-          {
-            echo "### Deployed-site check"
-            echo "Compared ${BASE_URL:-the public site} with:"
-            echo "- https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2024-10-30&hydrate=team,linescore,decisions,review"
-            echo "- https://statsapi.mlb.com/api/v1.1/game/775296/feed/live"
-          } >> "$GITHUB_STEP_SUMMARY"

@@ -19,6 +19,13 @@ class Links(HTMLParser):
             url = urlsplit(value)
             if url.scheme or url.netloc or not url.path:
                 continue
+            # A directory path (e.g. "/LIVPBP1/") is served by GitHub Pages as
+            # index.html, so resolve it the same way rather than as a file.
+            if url.path.endswith('/'):
+                if (ROOT / 'index.html').is_file():
+                    continue
+                self.missing.append(f'{self.page.relative_to(ROOT)}: missing {key} {value}')
+                continue
             path = unquote(url.path).removeprefix("/LIVPBP1/")
             target = (ROOT / path.lstrip('/')) if path.startswith('/') else (self.page.parent / path)
             if not target.is_file():

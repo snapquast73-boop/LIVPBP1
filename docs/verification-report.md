@@ -142,3 +142,25 @@ official response captured at run time.
 | Pages publishes `main` from `/ (root)` | confirmed | [Pages API](https://api.github.com/repos/snapquast73-boop/LIVPBP1/pages) |
 | Live URL | `https://snapquast73-boop.github.io/LIVPBP1/` | the API's own `html_url` |
 | Post-deployment probes | run by `.github/workflows/live-check.yml` after each `github-pages` deployment | workflow file in this repository |
+
+## 9. Reconciliation with the parallel session that landed the same restoration
+
+While this session was working, a parallel session merged PR #26 ("Restore the original modular MLB client")
+to `main`. Both sessions reached the **same root cause** and the **same fix**: the upload's pages require
+`assets/css/style.css` + eight `assets/js/*.js` files that were never uploaded, and the previous
+`assets/app.js` stopgap was removed. Their client and this session's are byte-identical except
+`assets/js/reviews-feed.js` and `assets/css/style.css`, where **`main` is newer** (it adds scan-health
+reporting so a failed refresh cannot present stale totals as current).
+
+This branch therefore keeps **`main`'s** site code and adds only what `main` did not have:
+
+- `tests/official-e2e.mjs` — the page-level official-payload test (§7): every rendered value compared with
+  the official response, with no hand-typed expected value. It passes against `main`'s client.
+- `tests/live-e2e.mjs` — the same idea against the **deployed** site in a real browser.
+- `tests/verify-game.mjs` — rewritten to read each expected value out of the official feed and to verify
+  the review cards, rather than asserting a fixed DOM shape.
+- `docs/` and `flagged.html` — the diagnosis, the blob-identity evidence, and every unverified item, each
+  with its source link.
+- One CI step in `check.yml` (`npm run -s test:pages`) and one in `live-check.yml` (the deployed-site run).
+
+No file from the other session was discarded. The board records the overlap.

@@ -1,127 +1,171 @@
-/* Compare a real Chrome render of the deployed game page with the official MLB
- * feed fetched separately in the same run.
- *
- *   node tests/verify-game.mjs <feed.json> <rendered-dom.html> <gamePk>
- *
- * Nothing here is typed in from memory: every expected string is read out of the
- * official feed JSON that was downloaded moments earlier, and every expected
- * value is looked for in the DOM that Chrome rendered from the public page.
- */
+// Compare actual Chrome-rendered game rows with an independently downloaded official MLB feed.
+//
+// Usage: node tests/verify-game.mjs <feed.json> <rendered.html> <gamePk>
+//
+// The rendered page is the real published client (assets/js/*.js, loaded in the
+// same <script> order as game.html). Every table row is matched cell by cell
+// against the official StatsAPI `feed/live` payload, and every data row must
+// carry exactly one source link pointing at that game's official feed URL.
+// A value the payload does not contain must render blank — it is never filled in.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 
-const [jsonPath, htmlPath, gamePk] = process.argv.slice(2);
-assert.ok(jsonPath && htmlPath && gamePk, 'usage: verify-game.mjs <feed.json> <dom.html> <gamePk>');
-
-const feed = JSON.parse(readFileSync(jsonPath, 'utf8'));
-assert.equal(String(feed.gamePk), String(gamePk), 'MLB did not return the requested game');
+const [json, html, gamePk] = process.argv.slice(2);
+const feed = JSON.parse(readFileSync(json, 'utf8'));
+const { gameData, liveData } = feed;
+assert.equal(String(feed.gamePk), gamePk, 'MLB did not return the requested game');
 
 const source = `https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`;
-const doc = new JSDOM(readFileSync(htmlPath, 'utf8')).window.document;
-const text = (node) => (node?.textContent ?? '').replace(/\s+/g, ' ').trim();
-const id = (name) => text(doc.getElementById(name));
+const doc = new JSDOM(readFileSync(html, 'utf8')).window.document;
 
-const gd = feed.gameData;
-const ld = feed.liveData;
+/** Payload value → exactly what the page must render for it (blank when absent). */
+const cell = (value) => (value === null || value === undefined || value === '' ? '' : String(value));
 
-assert.equal(id('banner'), '', 'the game page did not finish loading');
+// ---------------------------------------------------------------- page state
+const statusLine = doc.getElementById('status-line')?.textContent ?? '';
+assert.doesNotMatch(statusLine, /error|failed|timeout/i, 'game page reported an error');
+assert.ok(doc.querySelector('#linescore-wrap table.linescore-table'), 'linescore table missing');
 
-/* header */
+// ---------------------------------------------------------------- game header
+assert.equal(
+  doc.querySelector('#header-center .header-score')?.textContent.trim(),
+  `${liveData.linescore.teams.away.runs ?? '-'} – ${liveData.linescore.teams.home.runs ?? '-'}`,
+  'header score'
+);
+assert.equal(
+  doc.querySelector('#header-center .muted')?.textContent.trim(),
+  gameData.status.detailedState ?? '',
+  'header game state'
+);
 for (const side of ['away', 'home']) {
-  const team = gd.teams[side];
-  const runs = ld.linescore?.teams?.[side]?.runs;
-  const header = id(`header-${side}`);
-  assert.ok(header.includes(team.name), `${side} header missing ${team.name}: ${header}`);
-  assert.ok(header.includes(team.abbreviation), `${side} header missing ${team.abbreviation}: ${header}`);
-  if (typeof runs === 'number') {
-    assert.ok(id('header-center').includes(String(runs)), `${side} runs ${runs} not in the header score`);
-  }
-}
-assert.ok(id('header-center').includes(gd.status.detailedState), 'header missing the official status');
-
-/* decisions */
-const decisions = text(doc.getElementById('header-decisions'));
-for (const key of ['winner', 'loser', 'save']) {
-  const p = ld.decisions?.[key];
-  if (p?.fullName) assert.ok(decisions.includes(p.fullName), `${key} ${p.fullName} not shown: ${decisions}`);
-}
-
-/* linescore: every inning cell and every R/H/E/LOB total */
-const innings = ld.linescore?.innings ?? [];
-const rows = [...doc.querySelectorAll('#linescore-wrap tbody tr')];
-assert.equal(rows.length, 2, 'expected one linescore row per team');
-for (const [i, side] of ['away', 'home'].entries()) {
-  const cells = [...rows[i].querySelectorAll('td')].map((td) => text(td));
-  const shown = cells.slice(1, 1 + innings.length).map((c) => (c === '·' ? null : Number(c)));
-  assert.deepEqual(shown, innings.map((inn) => inn[side]?.runs ?? null), `${side} inning runs`);
-  const totals = ld.linescore.teams[side];
-  assert.deepEqual(
-    cells.slice(1 + innings.length, 5 + innings.length).map(Number),
-    [totals.runs, totals.hits, totals.errors, totals.leftOnBase],
-    `${side} R/H/E/LOB`,
+  assert.equal(
+    doc.querySelector(`#header-${side} .team-title`)?.textContent.trim(),
+    gameData.teams[side].name,
+    `header ${side} team name`
+  );
+  assert.equal(
+    doc.querySelector(`#header-${side} .muted`)?.textContent.trim().split(' · ')[0],
+    gameData.teams[side].abbreviation,
+    `header ${side} abbreviation`
   );
 }
 
-/* play-by-play: every description, in the order the page renders it */
-const plays = [...doc.querySelectorAll('#plays-wrap .play-desc')].map((el) => text(el));
-const expected = (ld.plays?.allPlays ?? []).map((p) => p.result?.description).filter(Boolean).reverse();
-assert.equal(plays.length, expected.length, 'play row count');
-assert.deepEqual(plays, expected, 'play descriptions or their order differ from the official feed');
-
-/* box score: every batter and pitcher line */
-function tableRows(table) {
-  const heads = [...table.querySelectorAll('thead th')].map((th) => text(th).toLowerCase());
-  return [...table.querySelectorAll('tbody tr')].map((tr) => {
-    const cells = [...tr.querySelectorAll('td')].map((td) => text(td));
-    const row = {};
-    heads.forEach((h, i) => { row[h] = cells[i]; });
-    return row;
+// Every rendered row: official cells, plus one trailing MLB source link.
+function checkTable(table, expected, label) {
+  const rows = [...table.querySelectorAll('tbody tr')];
+  assert.equal(rows.length, expected.length, `${label} row count`);
+  rows.forEach((row, i) => {
+    const cells = [...row.querySelectorAll('td')];
+    const links = row.querySelectorAll('a');
+    assert.equal(links.length, 1, `${label} row ${i + 1} source link count`);
+    assert.equal(links[0].getAttribute('href'), source, `${label} row ${i + 1} source link`);
+    assert.equal(cells.at(-1), links[0].closest('td'), `${label} row ${i + 1} source is last cell`);
+    assert.deepEqual(
+      cells.slice(0, -1).map((td) => td.textContent.trim()),
+      expected[i],
+      `${label} row ${i + 1} cells`
+    );
   });
+  console.log(`Verified ${rows.length} ${label} row(s) against ${source}`);
 }
-const batRows = [...doc.querySelectorAll('#boxscore-wrap .boxscore-table:not(.pitching-table)')]
-  .flatMap(tableRows);
-const pitRows = [...doc.querySelectorAll('#boxscore-wrap .pitching-table')].flatMap(tableRows);
-for (const side of ['away', 'home']) {
-  const box = ld.boxscore.teams[side];
-  for (const pid of box.batters ?? []) {
-    const p = box.players[`ID${pid}`];
-    if (!p) continue;
-    const row = batRows.find((r) => r.batter === p.person.fullName);
-    assert.ok(row, `missing batting row for ${p.person.fullName}`);
-    assert.equal(Number(row.ab), p.stats.batting.atBats, `${p.person.fullName} AB`);
-    assert.equal(Number(row.h), p.stats.batting.hits, `${p.person.fullName} H`);
+
+// ----------------------------------------------------------------- linescore
+const innings = liveData.linescore.innings ?? [];
+const linescoreRows = ['away', 'home'].map((side) => {
+  const totals = liveData.linescore.teams[side];
+  return [
+    gameData.teams[side].abbreviation,
+    ...innings.map((inning) => cell(inning[side]?.runs)),
+    cell(totals.runs),
+    cell(totals.hits),
+    cell(totals.errors),
+    cell(totals.leftOnBase),
+  ];
+});
+checkTable(doc.querySelector('#linescore-wrap table.linescore-table'), linescoreRows, 'linescore');
+
+// ----------------------------------------------------------------- boxscore
+const BAT = ['atBats', 'runs', 'hits', 'rbi', 'baseOnBalls', 'strikeOuts'];
+const PITCH = ['inningsPitched', 'hits', 'runs', 'earnedRuns', 'baseOnBalls', 'strikeOuts'];
+// boxscoreTeam() emits, per side and in this order: batting table, pitching table.
+const tables = [...doc.querySelectorAll('#boxscore-wrap table.boxscore-table')];
+assert.equal(tables.length, 4, 'expected a batting and a pitching table for each team');
+
+for (const [index, side] of ['away', 'home'].entries()) {
+  const team = liveData.boxscore.teams[side];
+  const players = team.players ?? {};
+
+  const batting = (team.batters ?? [])
+    .map((id) => players[`ID${id}`])
+    .filter(Boolean)
+    .sort((a, b) => Number(a.battingOrder ?? 9999) - Number(b.battingOrder ?? 9999))
+    .map((p) => {
+      const s = p.stats?.batting ?? {};
+      const order = Number(p.battingOrder);
+      return [
+        Number.isFinite(order) ? String(Math.round(order / 100)) : '',
+        p.person?.fullName ?? '',
+        p.position?.abbreviation ?? '',
+        ...BAT.map((key) => cell(s[key])),
+      ];
+    });
+  if (batting.length) {
+    checkTable(tables[index * 2], batting, `${side} batting`);
+  } else {
+    assert.match(
+      tables[index * 2].textContent,
+      /No batting lines yet\./,
+      `${side} batting table must say no lines were reported`
+    );
   }
-  for (const pid of box.pitchers ?? []) {
-    const p = box.players[`ID${pid}`];
-    if (!p) continue;
-    const row = pitRows.find((r) => r.pitcher === p.person.fullName);
-    assert.ok(row, `missing pitching row for ${p.person.fullName}`);
-    assert.equal(row.ip, String(p.stats.pitching.inningsPitched), `${p.person.fullName} IP`);
+
+  const pitching = (team.pitchers ?? [])
+    .map((id) => players[`ID${id}`])
+    .filter(Boolean)
+    .map((p) => {
+      const s = p.stats?.pitching ?? {};
+      return [
+        '',
+        p.person?.fullName ?? '',
+        p.position?.abbreviation ?? 'P',
+        ...PITCH.map((key) => cell(s[key])),
+      ];
+    });
+  if (pitching.length) {
+    checkTable(tables[index * 2 + 1], pitching, `${side} pitching`);
+  } else {
+    assert.match(
+      tables[index * 2 + 1].textContent,
+      /No pitching lines yet\./,
+      `${side} pitching table must say no lines were reported`
+    );
   }
 }
 
-/* every review record the official feed carries is on the page */
-const records = [];
-for (const play of ld.plays.allPlays ?? []) {
-  if (play.reviewDetails) records.push(play.reviewDetails);
-  for (const ev of play.playEvents ?? []) if (ev.reviewDetails) records.push(ev.reviewDetails);
-}
-const reviewCards = [...doc.querySelectorAll('#reviews-wrap .feed-card')];
-assert.equal(reviewCards.length, records.length,
-  `page shows ${reviewCards.length} review cards, the official feed carries ${records.length}`);
-const absOfficial = records.filter((r) => r.reviewType === 'MJ').length;
-if (absOfficial) {
-  const absShown = reviewCards.filter((c) => /ABS/i.test(c.textContent)).length;
-  assert.equal(absShown, absOfficial, `page shows ${absShown} ABS cards, official has ${absOfficial}`);
+// ------------------------------------------------------------ play-by-play
+// renderPlays() lists the official plays newest-first, one .play-item each.
+const plays = [...doc.querySelectorAll('#plays-wrap .play-item')];
+const officialPlays = (liveData.plays?.allPlays ?? []).slice().reverse();
+assert.equal(plays.length, officialPlays.length, 'play-by-play row count');
+plays.forEach((row, i) => {
+  assert.equal(
+    row.querySelector('.play-desc')?.textContent.trim(),
+    (officialPlays[i].result?.description ?? 'In progress…').trim(),
+    `play ${i + 1} description`
+  );
+});
+console.log(`Verified ${plays.length} play-by-play row(s) against ${source}`);
+
+// ------------------------------------------------------------------ live panel
+const currentPlay = doc.querySelector('#live-panel .atbat');
+assert.ok(currentPlay, 'live panel missing');
+const atBatName = liveData.plays?.currentPlay?.matchup?.batter?.fullName;
+if (atBatName) {
+  assert.ok(
+    currentPlay.textContent.includes(atBatName),
+    `live panel must name the current batter (${atBatName})`
+  );
 }
 
-/* every table row that claims a source must point at the official feed */
-const sourced = [...doc.querySelectorAll(
-  '#linescore-wrap a[target="_blank"], #boxscore-wrap a[target="_blank"], #reviews-wrap a[target="_blank"]')];
-assert.ok(sourced.length > 0, 'no rows carry an MLB source link');
-for (const a of sourced) assert.equal(a.getAttribute('href'), source);
-
-console.log(`Verified game ${gamePk}: header, ${innings.length} innings, ${plays.length} plays, ` +
-  `${batRows.length} batting and ${pitRows.length} pitching lines, ${records.length} review records ` +
-  `against ${source}`);
+console.log(`Game ${gamePk} verified against ${source}`);

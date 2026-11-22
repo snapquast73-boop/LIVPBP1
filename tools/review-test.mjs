@@ -1,7 +1,7 @@
 /* Deterministic, network-free checks for assets/js/reviews.js.
  * Run: node tools/review-test.mjs
  *
- * Fixtures are shaped from live StatsAPI responses verified 2026-11-22; see
+ * Fixtures are shaped from live StatsAPI responses verified 2026-11-20; see
  * docs/verification-report.md §3–§6 for the request URLs and raw evidence. */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -191,7 +191,7 @@ check('a used counter moving backwards is an irregularity', () => {
 /*
  * The Replay Feed asks for a `fields=` projection, and that projection is
  * leaf-name based: naming `reviewDetails` alone answers `"reviewDetails": {}`
- * (verified 2026-11-22 —
+ * (verified 2026-11-20 —
  * https://statsapi.mlb.com/api/v1.1/game/824027/feed/live?fields=liveData,plays,allPlays,playEvents,reviewDetails
  * returned empty objects, while adding the four leaf names returned
  * {"isOverturned":false,"inProgress":false,"reviewType":"MF","challengeTeamId":108}).
