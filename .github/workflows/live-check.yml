@@ -82,7 +82,15 @@ jobs:
           echo "Probed $(echo $files | wc -w) file(s) at $base" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
           exit $fail
 
+      # Runs only where the tree is checked out (pull request / manual run).
+      # A deployment_status event does not check out this repository, so the
+      # script would not exist there; the probe step above already covers the
+      # published files in that case.
       - name: Deployed site against the official MLB payload in a real browser
+        if: github.event_name != 'deployment_status'
         env:
           BASE_URL: https://snapquast73-boop.github.io/LIVPBP1/
-        run: node tests/live-e2e.mjs
+          CHROME: google-chrome
+        run: |
+          npm ci --ignore-scripts
+          node tests/live-e2e.mjs
