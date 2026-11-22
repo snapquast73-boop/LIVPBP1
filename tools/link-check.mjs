@@ -20,7 +20,12 @@ const proseOnly = [];
 const externals = [];
 const checked = new Set();
 
-function exists(relPath) {
+function exists(relPath, from) {
+  // A Markdown link is relative to its own file, and a page link to the site root.
+  if (from && from.endsWith('.md')) {
+    const rel = path.join(path.dirname(from), relPath.split('#')[0].split('?')[0]);
+    if (fs.existsSync(path.join(REPO_ROOT, rel))) return true;
+  }
   const clean = relPath.split('#')[0].split('?')[0];
   // Scope descriptions in COORDINATION.md / docs use globs (`assets/**`); they
   // are not links, so they are not checked.
@@ -31,7 +36,7 @@ function exists(relPath) {
   const SITE_BASE = '/LIVPBP1/';
   const rel = clean.startsWith(SITE_BASE) ? clean.slice(SITE_BASE.length) : clean.replace(/^\//, '');
   const abs = path.join(REPO_ROOT, rel);
-  return fs.existsSync(abs) || fs.existsSync(abs + '.md');
+  return fs.existsSync(abs) || fs.existsSync(abs + '.md') || fs.existsSync(abs.replace(/\.md$/, '') );
 }
 
 function checkRef(from, ref) {
@@ -45,7 +50,7 @@ function checkRef(from, ref) {
   const key = from + ' -> ' + trimmed;
   if (checked.has(key)) return;
   checked.add(key);
-  if (!exists(trimmed)) missing.push(key);
+  if (!exists(trimmed, from)) missing.push(key);
 }
 
 for (const page of HTML_PAGES) {
