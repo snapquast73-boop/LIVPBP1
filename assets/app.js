@@ -120,7 +120,7 @@ function renderReviewRow(list, entry, detailsLink = false) {
 function renderReplay() {
   const list = el("feed-list"), stats = el("feed-stats");
   if (!replayScan || replayScan.date !== date) return;
-  const { entries, balances, total, failed } = replayScan;
+  const { entries, balances, total, failed, stale } = replayScan;
   const [, , includes] = replayFilters.find(([key]) => key === replayFilter);
   const visible = entries.filter(includes);
   list.replaceChildren();
@@ -132,6 +132,7 @@ function renderReplay() {
   const wasOpen = stats.querySelector("details")?.open;
   stats.textContent = failed ? "Totals unverified: some game feeds are unavailable."
     : replayFilters.slice(1).map(([, label, match]) => `${label}: ${entries.filter(match).length}`).join(" · ");
+  if (stale) stats.prepend("Stale data — latest update failed. ");
   if (balances.length) {
     const details = document.createElement("details");
     details.open = Boolean(wasOpen);
@@ -311,6 +312,10 @@ async function refresh() {
     text("status-line", "Last updated " + new Date().toLocaleTimeString());
   } catch (e) {
     if (v === revision) {
+      if (replayScan?.date === date) {
+        replayScan.stale = true;
+        renderReplay();
+      }
       text("banner", "Unable to update: " + e.message);
       text(
         "status-line",

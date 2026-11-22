@@ -186,5 +186,11 @@
       As with all historical checks, this verifies the archived sample response
       only, not future live games or original upstream feature parity.
     </p>
+    <h2>Refresh failures and verification limits</h2>
+    <p>Replay totals and challenge counters retained after a failed schedule refresh are
+      labeled “Stale data” until a successful scan replaces them. Switching filters
+      does not remove that warning. Historical automated checks compare rendered rows
+      with the <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2024-10-30&amp;hydrate=linescore">official MLB schedule</a>
+      and linked game feeds; they do not certify future data or restore missing original features.</p>
   </main>
 </html>
